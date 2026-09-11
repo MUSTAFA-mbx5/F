@@ -3,11 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>طباعة فواتير 80mm</title>
+<title>طباعة فواتير 80mm - Thermal Printer</title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tahoma', sans-serif; }
+  /* خط حراري - Thermal Font */
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
     background: #e9ecef;
     display: flex;
@@ -15,40 +21,73 @@
     padding: 20px;
     gap: 20px;
     flex-wrap: wrap;
+    font-family: 'Tahoma', sans-serif;
+    min-height: 100vh;
   }
 
-  /* لوحة التحكم */
+  /* ============ لوحة التحكم ============ */
   .controls {
     background: #fff;
-    padding: 20px;
+    padding: 15px;
     border-radius: 10px;
-    width: 320px;
+    width: 340px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     height: fit-content;
+    max-height: 95vh;
+    overflow-y: auto;
   }
-  .controls h2 { text-align: center; margin-bottom: 15px; color: #333; font-size: 18px; }
-  .controls label { display: block; margin: 10px 0 5px; font-size: 13px; color: #555; }
+  .controls h2 {
+    text-align: center;
+    margin-bottom: 12px;
+    color: #333;
+    font-size: 16px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 8px;
+  }
+  .section-title {
+    background: #f1f3f5;
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #495057;
+    margin: 12px 0 8px;
+  }
+  .controls label {
+    display: block;
+    margin: 8px 0 4px;
+    font-size: 12px;
+    color: #555;
+    font-weight: 600;
+  }
   .controls input[type="text"],
   .controls input[type="number"],
-  .controls textarea {
+  .controls textarea,
+  .controls select {
     width: 100%;
-    padding: 8px;
+    padding: 7px;
     border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 13px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .controls textarea {
+    resize: vertical;
+    min-height: 60px;
+    font-family: 'Courier Prime', monospace;
+    line-height: 1.5;
   }
   .controls button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 10px;
+    padding: 8px 10px;
     border: none;
-    border-radius: 6px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: bold;
     color: #fff;
     transition: 0.2s;
   }
+  .btn-full { width: 100%; margin-top: 8px; }
   .btn-add { background: #007bff; }
   .btn-add:hover { background: #0056b3; }
   .btn-print { background: #28a745; }
@@ -57,54 +96,118 @@
   .btn-pdf:hover { background: #a71d2a; }
   .btn-clear { background: #6c757d; }
   .btn-clear:hover { background: #495057; }
+  .btn-row {
+    display: flex;
+    gap: 5px;
+    margin-top: 6px;
+  }
+  .btn-row button {
+    flex: 1;
+    background: #6c757d;
+  }
+  .btn-row button:hover { background: #495057; }
+  .btn-del { background: #dc3545 !important; }
+  .btn-del:hover { background: #a71d2a !important; }
 
-  /* منطقة الفاتورة 80mm */
+  .font-select {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+
+  /* ============ منطقة الفاتورة 80mm ============ */
+  #receiptWrapper {
+    position: relative;
+  }
   #receipt {
     width: 80mm;
     min-height: 100mm;
     background: #fff;
-    padding: 5mm;
-    font-size: 12px;
+    padding: 4mm;
     color: #000;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     border-radius: 4px;
+    position: relative;
+    font-size: 11px;
+    line-height: 1.5;
+    overflow: hidden;
   }
-  #receipt .header {
-    text-align: center;
-    border-bottom: 1px dashed #000;
-    padding-bottom: 5px;
-    margin-bottom: 5px;
+
+  /* الخطوط */
+  .font-thermal {
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 0.2px;
   }
-  #receipt .header h1 { font-size: 16px; margin-bottom: 3px; }
-  #receipt .header p { font-size: 11px; }
-  #receipt .content {
-    min-height: 40mm;
+  .font-courier {
+    font-family: 'Courier Prime', monospace;
+  }
+  .font-mono {
+    font-family: 'Roboto Mono', monospace;
+  }
+  .font-arabic {
+    font-family: 'Tahoma', 'Arial', sans-serif;
+  }
+
+  /* النص الرئيسي */
+  #contentDisplay {
     white-space: pre-wrap;
     word-wrap: break-word;
-    font-size: 12px;
-    line-height: 1.6;
-    margin: 5px 0;
-  }
-  #receipt .barcode-area {
-    text-align: center;
-    margin: 8px 0;
-  }
-  #receipt .barcode-area svg { max-width: 100%; height: auto; }
-  #receipt .image-area {
-    text-align: center;
-    margin: 8px 0;
-  }
-  #receipt .image-area img {
-    max-width: 70mm;
-    max-height: 60mm;
-    object-fit: contain;
-  }
-  #receipt .footer {
-    border-top: 1px dashed #000;
-    padding-top: 5px;
-    text-align: center;
     font-size: 11px;
-    margin-top: 5px;
+    line-height: 1.5;
+    min-height: 40mm;
+  }
+  #contentDisplay:focus {
+    outline: 2px dashed #007bff;
+    outline-offset: 2px;
+  }
+
+  /* العناصر القابلة للسحب */
+  .draggable {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    padding: 4px;
+    border: 1px dashed transparent;
+    transition: border-color 0.2s;
+    z-index: 10;
+  }
+  .draggable:hover {
+    border-color: #007bff;
+  }
+  .draggable.selected {
+    border-color: #dc3545;
+    border-style: dashed;
+  }
+
+  /* الباركود والصورة */
+  .barcode-item svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .image-item img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    pointer-events: none;
+  }
+
+  /* مقبض التحكم */
+  .drag-handle {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: move;
+    display: none;
+    z-index: 100;
+  }
+  .draggable:hover .drag-handle,
+  .draggable.selected .drag-handle {
+    display: block;
   }
 
   /* إعدادات الطباعة */
@@ -120,6 +223,8 @@
       border-radius: 0;
       padding: 2mm 3mm;
     }
+    .draggable { border-color: transparent !important; }
+    .drag-handle { display: none !important; }
     @page {
       size: 80mm auto;
       margin: 0;
@@ -129,129 +234,406 @@
 </head>
 <body>
 
-<!-- لوحة التحكم -->
+<!-- ============ لوحة التحكم ============ -->
 <div class="controls">
-  <h2>⚙️ إعدادات الفاتورة</h2>
+  <h2>⚙️ محرر الفاتورة</h2>
 
-  <label>اسم المتجر / العنوان</label>
-  <input type="text" id="shopName" value="متجر الإلكترونيات" oninput="updateHeader()">
+  <!-- ===== المحرر النصي ===== -->
+  <div class="section-title">✏️ محرر النص</div>
+  
+  <label>نوع الخط</label>
+  <select id="fontSelect" onchange="changeFont()">
+    <option value="font-thermal">Thermal (حراري)</option>
+    <option value="font-courier">Courier (كوبري)</option>
+    <option value="font-mono">Roboto Mono</option>
+    <option value="font-arabic">Arabic (عربي)</option>
+  </select>
 
-  <label>رقم الهاتف / سطر فرعي</label>
-  <input type="text" id="shopSub" value="هاتف: 0770 000 0000" oninput="updateHeader()">
+  <label>حجم الخط (px)</label>
+  <input type="number" id="fontSize" value="11" min="6" max="30" onchange="changeFontSize()">
 
-  <label>محتوى الفاتورة (نص حر)</label>
-  <textarea id="receiptText" rows="6" placeholder="اكتب تفاصيل الفاتورة هنا...
-مثال:
-منتج 1 × 2 = 10,000
-منتج 2 × 1 = 5,000
-الإجمالي: 15,000 د.ع">منتج 1 × 2 = 10,000 د.ع
-منتج 2 × 1 = 5,000 د.ع
----------------------
-الإجمالي: 15,000 د.ع</textarea>
+  <label>نص الفاتورة</label>
+  <textarea id="receiptText" rows="18">Sharaf DG - Dubai Mall
+Downtown Dubai, UAE
+Tel: +971 4 341 8888
+Email: customercare@sharafdg.com
+TRN: 100018949904013
+--------------------
+Invoice: SHDG-20231014-001
+Date: 2024/09/05 00:00
+--------------------
+Buyer: Marwa Shweiki
+Contact: +971 4 441 0041
+--------------------
+Item: iPhone 15 Pro Max 256GB Blk. Tit.
+Part No.: MU773AA/A
+Serial: F71FCFF7JK
+IMEI: 356388816119126
+--------------------
+Qty: 1
+Unit Price: 4,856.19 AED
+VAT (5%): 242.81 AED
+Total: 5,099.00 AED
+--------------------
+Payment: Credit Card
+Trans ID: CRD-20240905-SHDG-001
+--------------------
+Warranty: AppleCare valid
+2024/09/05 - 2025/09/04
+Retain invoice for service
+--------------------
+Thank you for your purchase!</textarea>
 
+  <!-- ===== الباركود ===== -->
+  <div class="section-title">📊 الباركود</div>
   <label>نص الباركود</label>
-  <input type="text" id="barcodeText" placeholder="مثال: 123456789012">
-
-  <label>إرفاق صورة</label>
-  <input type="file" id="imageInput" accept="image/*">
-
-  <label>تذييل الفاتورة</label>
-  <input type="text" id="footerText" value="شكراً لتعاملكم معنا 🌟" oninput="updateFooter()">
-
-  <button class="btn-add" onclick="updateReceipt()">🔄 تحديث الفاتورة</button>
-  <button class="btn-print" onclick="window.print()">🖨️ طباعة مباشرة</button>
-  <button class="btn-pdf" onclick="downloadPDF()">📄 تحميل PDF</button>
-  <button class="btn-clear" onclick="clearReceipt()">🗑️ مسح الكل</button>
-</div>
-
-<!-- الفاتورة -->
-<div id="receipt">
-  <div class="header">
-    <h1 id="shopNameDisplay">متجر الإلكترونيات</h1>
-    <p id="shopSubDisplay">هاتف: 0770 000 0000</p>
+  <input type="text" id="barcodeText" placeholder="مثال: 356388816119126" value="356388816119126">
+  <div class="btn-row">
+    <button onclick="addBarcode()">➕ إضافة</button>
+    <button onclick="addBarcodeMultiple()">➕➕ (نسختين)</button>
   </div>
 
-  <div class="content" id="contentDisplay">منتج 1 × 2 = 10,000 د.ع
-منتج 2 × 1 = 5,000 د.ع
----------------------
-الإجمالي: 15,000 د.ع</div>
+  <!-- ===== الصورة ===== -->
+  <div class="section-title">🖼️ الصورة / الشعار</div>
+  <input type="file" id="imageInput" accept="image/*" style="font-size:11px;">
+  <div class="btn-row">
+    <button onclick="addImage()">➕ إضافة صورة</button>
+  </div>
 
-  <div class="barcode-area" id="barcodeArea"></div>
-  <div class="image-area" id="imageArea"></div>
+  <!-- ===== التحكم بالعناصر المحددة ===== -->
+  <div class="section-title">🎛️ التحكم بالعنصر المحدد</div>
+  <div class="btn-row">
+    <button onclick="scaleUp()">🔍➕ تكبير</button>
+    <button onclick="scaleDown()">🔍➖ تصغير</button>
+  </div>
+  <div class="btn-row">
+    <button onclick="moveUp()">⬆️</button>
+    <button onclick="moveDown()">⬇️</button>
+    <button onclick="moveLeft()">⬅️</button>
+    <button onclick="moveRight()">➡️</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn-del" onclick="deleteSelected()">🗑️ حذف المحدد</button>
+  </div>
 
-  <div class="footer" id="footerDisplay">شكراً لتعاملكم معنا 🌟</div>
+  <!-- ===== أزرار رئيسية ===== -->
+  <div class="section-title">🚀 الإجراءات</div>
+  <button class="btn-add btn-full" onclick="updateReceipt()">🔄 تحديث الفاتورة</button>
+  <button class="btn-print btn-full" onclick="window.print()">🖨️ طباعة مباشرة</button>
+  <button class="btn-pdf btn-full" onclick="downloadPDF()">📄 تحميل PDF</button>
+  <button class="btn-clear btn-full" onclick="clearAll()">🗑️ مسح الكل</button>
+</div>
+
+<!-- ============ الفاتورة ============ -->
+<div id="receiptWrapper">
+  <div id="receipt" class="font-thermal">
+    <div id="contentDisplay" contenteditable="true"></div>
+    <!-- عناصر الباركود والصور تُضاف هنا ديناميكياً -->
+  </div>
 </div>
 
 <script>
-  // تحديث العنوان
-  function updateHeader() {
-    document.getElementById('shopNameDisplay').textContent = document.getElementById('shopName').value;
-    document.getElementById('shopSubDisplay').textContent = document.getElementById('shopSub').value;
-  }
+  let selectedElement = null;
+  let elementCounter = 0;
 
-  // تحديث التذييل
-  function updateFooter() {
-    document.getElementById('footerDisplay').textContent = document.getElementById('footerText').value;
-  }
-
-  // تحديث الفاتورة الرئيسية
+  /* ============ تحديث المحتوى النصي ============ */
   function updateReceipt() {
-    updateHeader();
-    updateFooter();
-
-    // النص
-    document.getElementById('contentDisplay').textContent = document.getElementById('receiptText').value;
-
-    // الباركود
-    const barcodeText = document.getElementById('barcodeText').value.trim();
-    const barcodeArea = document.getElementById('barcodeArea');
-    barcodeArea.innerHTML = '';
-    if (barcodeText) {
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      barcodeArea.appendChild(svg);
-      try {
-        JsBarcode(svg, barcodeText, {
-          format: 'CODE128',
-          width: 1.6,
-          height: 50,
-          displayValue: true,
-          fontSize: 12,
-          margin: 2
-        });
-      } catch (e) {
-        barcodeArea.innerHTML = '<p style="color:red;font-size:11px;">باركود غير صالح</p>';
-      }
-    }
-
-    // الصورة
-    const imageInput = document.getElementById('imageInput');
-    const imageArea = document.getElementById('imageArea');
-    imageArea.innerHTML = '';
-    if (imageInput.files && imageInput.files[0]) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = document.createElement('img');
-        img.src = e.target.result;
-        imageArea.appendChild(img);
-      };
-      reader.readAsDataURL(imageInput.files[0]);
+    const text = document.getElementById('receiptText').value;
+    const contentDisplay = document.getElementById('contentDisplay');
+    if (contentDisplay.textContent !== text) {
+      contentDisplay.textContent = text;
     }
   }
 
-  // مراقبة تغيير الصورة
-  document.getElementById('imageInput').addEventListener('change', updateReceipt);
+  // مزامنة المحرر مع العرض
+  document.getElementById('receiptText').addEventListener('input', updateReceipt);
 
-  // تحديث عند الكتابة في المحرر
-  document.getElementById('receiptText').addEventListener('input', function() {
-    document.getElementById('contentDisplay').textContent = this.value;
+  // تحرير مباشر داخل الفاتورة
+  document.getElementById('contentDisplay').addEventListener('input', function() {
+    document.getElementById('receiptText').value = this.textContent;
   });
 
-  // تحديث الباركود لحظياً
-  document.getElementById('barcodeText').addEventListener('input', updateReceipt);
+  /* ============ تغيير الخط ============ */
+  function changeFont() {
+    const font = document.getElementById('fontSelect').value;
+    const receipt = document.getElementById('receipt');
+    receipt.className = font;
+  }
 
-  // تحميل PDF
+  function changeFontSize() {
+    const size = document.getElementById('fontSize').value + 'px';
+    document.getElementById('contentDisplay').style.fontSize = size;
+  }
+
+  /* ============ إضافة الباركود ============ */
+  function addBarcode() {
+    const text = document.getElementById('barcodeText').value.trim();
+    if (!text) {
+      alert('⚠️ اكتب نص الباركود أولاً');
+      return;
+    }
+    createBarcodeElement(text);
+  }
+
+  function addBarcodeMultiple() {
+    const text = document.getElementById('barcodeText').value.trim();
+    if (!text) {
+      alert('⚠️ اكتب نص الباركود أولاً');
+      return;
+    }
+    createBarcodeElement(text);
+    setTimeout(() => createBarcodeElement(text), 100);
+  }
+
+  function createBarcodeElement(text) {
+    const receipt = document.getElementById('receipt');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'draggable barcode-item';
+    wrapper.dataset.type = 'barcode';
+    wrapper.dataset.id = 'el_' + (++elementCounter);
+    wrapper.dataset.scale = '1';
+    
+    // موضع مبدئي
+    const top = 20 + Math.random() * 30;
+    wrapper.style.top = top + 'mm';
+    wrapper.style.left = '3mm';
+    wrapper.style.width = '70mm';
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    wrapper.appendChild(svg);
+
+    // مقبض السحب
+    const handle = document.createElement('div');
+    handle.className = 'drag-handle';
+    wrapper.appendChild(handle);
+
+    receipt.appendChild(wrapper);
+
+    try {
+      JsBarcode(svg, text, {
+        format: 'CODE128',
+        width: 1.6,
+        height: 50,
+        displayValue: true,
+        fontSize: 11,
+        margin: 2,
+        font: 'Share Tech Mono'
+      });
+    } catch (e) {
+      wrapper.innerHTML = '<p style="color:red;font-size:10px;">باركود غير صالح</p>';
+    }
+
+    makeDraggable(wrapper);
+    selectElement(wrapper);
+  }
+
+  /* ============ إضافة الصورة ============ */
+  function addImage() {
+    const input = document.getElementById('imageInput');
+    if (!input.files || !input.files[0]) {
+      alert('⚠️ اختر صورة أولاً');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const receipt = document.getElementById('receipt');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'draggable image-item';
+      wrapper.dataset.type = 'image';
+      wrapper.dataset.id = 'el_' + (++elementCounter);
+      wrapper.dataset.scale = '1';
+
+      wrapper.style.top = '30mm';
+      wrapper.style.left = '10mm';
+      wrapper.style.width = '60mm';
+
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      wrapper.appendChild(img);
+
+      const handle = document.createElement('div');
+      handle.className = 'drag-handle';
+      wrapper.appendChild(handle);
+
+      receipt.appendChild(wrapper);
+      makeDraggable(wrapper);
+      selectElement(wrapper);
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  /* ============ السحب والإفلات ============ */
+  function makeDraggable(el) {
+    let isDown = false;
+    let startX, startY, origX, origY;
+
+    el.addEventListener('mousedown', function(e) {
+      if (e.target.classList.contains('drag-handle') || el === e.currentTarget) {
+        isDown = true;
+        selectElement(el);
+        const rect = el.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        origX = rect.left;
+        origY = rect.top;
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!isDown) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const receiptRect = document.getElementById('receipt').getBoundingClientRect();
+      
+      let newLeft = origX + dx - receiptRect.left;
+      let newTop = origY + dy - receiptRect.top;
+
+      // حدود الفاتورة
+      newLeft = Math.max(0, Math.min(newLeft, receiptRect.width - 20));
+      newTop = Math.max(0, Math.min(newTop, receiptRect.height - 20));
+
+      el.style.left = newLeft + 'px';
+      el.style.top = newTop + 'px';
+    });
+
+    document.addEventListener('mouseup', function() {
+      isDown = false;
+    });
+
+    // دعم اللمس
+    el.addEventListener('touchstart', function(e) {
+      const touch = e.touches[0];
+      isDown = true;
+      selectElement(el);
+      const rect = el.getBoundingClientRect();
+      startX = touch.clientX;
+      startY = touch.clientY;
+      origX = rect.left;
+      origY = rect.top;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!isDown) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      const receiptRect = document.getElementById('receipt').getBoundingClientRect();
+      
+      let newLeft = origX + dx - receiptRect.left;
+      let newTop = origY + dy - receiptRect.top;
+
+      newLeft = Math.max(0, Math.min(newLeft, receiptRect.width - 20));
+      newTop = Math.max(0, Math.min(newTop, receiptRect.height - 20));
+
+      el.style.left = newLeft + 'px';
+      el.style.top = newTop + 'px';
+    }, { passive: true });
+
+    document.addEventListener('touchend', function() {
+      isDown = false;
+    });
+  }
+
+  /* ============ تحديد العنصر ============ */
+  function selectElement(el) {
+    if (selectedElement) selectedElement.classList.remove('selected');
+    selectedElement = el;
+    if (el) el.classList.add('selected');
+  }
+
+  document.getElementById('receipt').addEventListener('click', function(e) {
+    if (e.target === this || e.target.id === 'contentDisplay') {
+      selectElement(null);
+    }
+  });
+
+  /* ============ التحكم بالحجم ============ */
+  function scaleUp() {
+    if (!selectedElement) { alert('⚠️ اختر عنصراً أولاً (باركود أو صورة)'); return; }
+    let scale = parseFloat(selectedElement.dataset.scale || '1');
+    scale = Math.min(scale + 0.1, 3);
+    selectedElement.dataset.scale = scale;
+    applyScale(selectedElement, scale);
+  }
+
+  function scaleDown() {
+    if (!selectedElement) { alert('⚠️ اختر عنصراً أولاً'); return; }
+    let scale = parseFloat(selectedElement.dataset.scale || '1');
+    scale = Math.max(scale - 0.1, 0.3);
+    selectedElement.dataset.scale = scale;
+    applyScale(selectedElement, scale);
+  }
+
+  function applyScale(el, scale) {
+    if (el.dataset.type === 'barcode') {
+      const svg = el.querySelector('svg');
+      if (svg) {
+        svg.style.transform = `scale(${scale})`;
+        svg.style.transformOrigin = 'top right';
+      }
+    } else if (el.dataset.type === 'image') {
+      const img = el.querySelector('img');
+      if (img) {
+        img.style.transform = `scale(${scale})`;
+        img.style.transformOrigin = 'center';
+      }
+    }
+  }
+
+  /* ============ تحريك العنصر ============ */
+  function moveBy(dx, dy) {
+    if (!selectedElement) { alert('⚠️ اختر عنصراً أولاً'); return; }
+    const rect = selectedElement.getBoundingClientRect();
+    const receiptRect = document.getElementById('receipt').getBoundingClientRect();
+    
+    let newLeft = rect.left - receiptRect.left + dx;
+    let newTop = rect.top - receiptRect.top + dy;
+
+    newLeft = Math.max(0, Math.min(newLeft, receiptRect.width - 20));
+    newTop = Math.max(0, Math.min(newTop, receiptRect.height - 20));
+
+    selectedElement.style.left = newLeft + 'px';
+    selectedElement.style.top = newTop + 'px';
+  }
+
+  function moveUp() { moveBy(0, -5); }
+  function moveDown() { moveBy(0, 5); }
+  function moveLeft() { moveBy(-5, 0); }
+  function moveRight() { moveBy(5, 0); }
+
+  /* ============ حذف العنصر المحدد ============ */
+  function deleteSelected() {
+    if (!selectedElement) { alert('⚠️ اختر عنصراً أولاً'); return; }
+    if (confirm('هل تريد حذف العنصر المحدد؟')) {
+      selectedElement.remove();
+      selectedElement = null;
+    }
+  }
+
+  /* ============ لوحة المفاتيح ============ */
+  document.addEventListener('keydown', function(e) {
+    if (!selectedElement) return;
+    const step = e.shiftKey ? 10 : 1;
+    switch(e.key) {
+      case 'ArrowUp': moveBy(0, -step); e.preventDefault(); break;
+      case 'ArrowDown': moveBy(0, step); e.preventDefault(); break;
+      case 'ArrowLeft': moveBy(-step, 0); e.preventDefault(); break;
+      case 'ArrowRight': moveBy(step, 0); e.preventDefault(); break;
+      case 'Delete': deleteSelected(); break;
+      case '+': case '=': scaleUp(); break;
+      case '-': scaleDown(); break;
+    }
+  });
+
+  /* ============ تحميل PDF ============ */
   function downloadPDF() {
     const element = document.getElementById('receipt');
+    // إخفاء المقابض مؤقتاً
+    const handles = document.querySelectorAll('.drag-handle');
+    handles.forEach(h => h.style.display = 'none');
+    if (selectedElement) selectedElement.classList.remove('selected');
+
     const opt = {
       margin: 0,
       filename: 'فاتورة_' + Date.now() + '.pdf',
@@ -259,21 +641,26 @@
       html2canvas: { scale: 3, useCORS: true },
       jsPDF: { unit: 'mm', format: [80, 297], orientation: 'portrait' }
     };
-    html2pdf().set(opt).from(element).save();
+    html2pdf().set(opt).from(element).save().then(() => {
+      handles.forEach(h => h.style.display = '');
+    });
   }
 
-  // مسح الكل
-  function clearReceipt() {
+  /* ============ مسح الكل ============ */
+  function clearAll() {
+    if (!confirm('هل تريد مسح كل العناصر والنص؟')) return;
     document.getElementById('receiptText').value = '';
-    document.getElementById('barcodeText').value = '';
-    document.getElementById('imageInput').value = '';
     document.getElementById('contentDisplay').textContent = '';
-    document.getElementById('barcodeArea').innerHTML = '';
-    document.getElementById('imageArea').innerHTML = '';
+    document.querySelectorAll('.draggable').forEach(el => el.remove());
+    document.getElementById('imageInput').value = '';
+    selectedElement = null;
   }
 
-  // تهيئة أولية
-  updateReceipt();
+  /* ============ تهيئة أولية ============ */
+  window.addEventListener('DOMContentLoaded', () => {
+    updateReceipt();
+    changeFontSize();
+  });
 </script>
 
 </body>
