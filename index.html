@@ -109,11 +109,24 @@
   .btn-del { background: #dc3545 !important; }
   .btn-del:hover { background: #a71d2a !important; }
 
-  .font-select {
+  /* أزرار الاتجاه */
+  .dir-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 5px;
+    margin-top: 5px;
   }
+  .dir-buttons button {
+    padding: 10px 5px;
+    font-size: 12px;
+    background: #17a2b8;
+  }
+  .dir-buttons button.active {
+    background: #28a745;
+    box-shadow: 0 0 0 2px #28a745 inset;
+  }
+  .dir-buttons button:hover { background: #138496; }
+  .dir-buttons button.active:hover { background: #218838; }
 
   /* ============ منطقة الفاتورة 80mm ============ */
   #receiptWrapper {
@@ -147,6 +160,10 @@
   .font-arabic {
     font-family: 'Tahoma', 'Arial', sans-serif;
   }
+
+  /* اتجاه النص */
+  .dir-rtl #contentDisplay { direction: rtl; text-align: right; }
+  .dir-ltr #contentDisplay { direction: ltr; text-align: left; }
 
   /* النص الرئيسي */
   #contentDisplay {
@@ -210,6 +227,48 @@
     display: block;
   }
 
+  /* ============ الحقوق المتحركة ============ */
+  .marquee-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(90deg, #1a1a2e, #16213e, #0f3460);
+    color: #fff;
+    padding: 8px 0;
+    overflow: hidden;
+    z-index: 9999;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+    border-top: 2px solid #007bff;
+  }
+  .marquee-content {
+    display: inline-block;
+    white-space: nowrap;
+    padding-left: 100%;
+    animation: marquee 20s linear infinite;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+  }
+  .marquee-content span {
+    margin: 0 30px;
+    color: #ffd700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+  }
+  .marquee-content .lib-name {
+    color: #4dabf7;
+    text-shadow: 0 0 8px rgba(77, 171, 247, 0.7);
+  }
+  .marquee-content .divider {
+    color: #ff6b6b;
+    margin: 0 15px;
+  }
+
+  @keyframes marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
+
   /* إعدادات الطباعة */
   @media print {
     body * { visibility: hidden; }
@@ -225,6 +284,7 @@
     }
     .draggable { border-color: transparent !important; }
     .drag-handle { display: none !important; }
+    .marquee-bar { display: none !important; }
     @page {
       size: 80mm auto;
       margin: 0;
@@ -240,7 +300,13 @@
 
   <!-- ===== المحرر النصي ===== -->
   <div class="section-title">✏️ محرر النص</div>
-  
+
+  <label>اتجاه النص</label>
+  <div class="dir-buttons">
+    <button id="btnRTL" class="active" onclick="setDirection('rtl')">⬅️ عربي (RTL)</button>
+    <button id="btnLTR" onclick="setDirection('ltr')">➡️ English (LTR)</button>
+  </div>
+
   <label>نوع الخط</label>
   <select id="fontSelect" onchange="changeFont()">
     <option value="font-thermal">Thermal (حراري)</option>
@@ -253,7 +319,7 @@
   <input type="number" id="fontSize" value="11" min="6" max="30" onchange="changeFontSize()">
 
   <label>نص الفاتورة</label>
-  <textarea id="receiptText" rows="18">Sharaf DG - Dubai Mall
+  <textarea id="receiptText" rows="18" dir="ltr">Sharaf DG - Dubai Mall
 Downtown Dubai, UAE
 Tel: +971 4 341 8888
 Email: customercare@sharafdg.com
@@ -326,15 +392,35 @@ Thank you for your purchase!</textarea>
 
 <!-- ============ الفاتورة ============ -->
 <div id="receiptWrapper">
-  <div id="receipt" class="font-thermal">
+  <div id="receipt" class="font-thermal dir-ltr">
     <div id="contentDisplay" contenteditable="true"></div>
-    <!-- عناصر الباركود والصور تُضاف هنا ديناميكياً -->
+  </div>
+</div>
+
+<!-- ============ شريط الحقوق المتحرك ============ -->
+<div class="marquee-bar">
+  <div class="marquee-content">
+    <span>© 2025 جميع الحقوق محفوظة</span>
+    <span class="divider">◆</span>
+    <span class="lib-name">📚 مكتبة المصطفى</span>
+    <span class="divider">◆</span>
+    <span>تصميم وتطوير احترافي</span>
+    <span class="divider">◆</span>
+    <span class="lib-name">مكتبة المصطفى</span>
+    <span class="divider">◆</span>
+    <span>طباعة فواتير حرارية 80mm</span>
+    <span class="divider">◆</span>
+    <span class="lib-name">© Al-Mustafa Library</span>
+    <span class="divider">◆</span>
+    <span>جميع الحقوق محفوظة 2025</span>
+    <span class="divider">◆</span>
   </div>
 </div>
 
 <script>
   let selectedElement = null;
   let elementCounter = 0;
+  let currentDirection = 'ltr';
 
   /* ============ تحديث المحتوى النصي ============ */
   function updateReceipt() {
@@ -345,19 +431,41 @@ Thank you for your purchase!</textarea>
     }
   }
 
-  // مزامنة المحرر مع العرض
   document.getElementById('receiptText').addEventListener('input', updateReceipt);
 
-  // تحرير مباشر داخل الفاتورة
   document.getElementById('contentDisplay').addEventListener('input', function() {
     document.getElementById('receiptText').value = this.textContent;
   });
+
+  /* ============ تغيير الاتجاه ============ */
+  function setDirection(dir) {
+    currentDirection = dir;
+    const receipt = document.getElementById('receipt');
+    const textarea = document.getElementById('receiptText');
+    const btnRTL = document.getElementById('btnRTL');
+    const btnLTR = document.getElementById('btnLTR');
+
+    if (dir === 'rtl') {
+      receipt.classList.remove('dir-ltr');
+      receipt.classList.add('dir-rtl');
+      textarea.setAttribute('dir', 'rtl');
+      btnRTL.classList.add('active');
+      btnLTR.classList.remove('active');
+    } else {
+      receipt.classList.remove('dir-rtl');
+      receipt.classList.add('dir-ltr');
+      textarea.setAttribute('dir', 'ltr');
+      btnLTR.classList.add('active');
+      btnRTL.classList.remove('active');
+    }
+  }
 
   /* ============ تغيير الخط ============ */
   function changeFont() {
     const font = document.getElementById('fontSelect').value;
     const receipt = document.getElementById('receipt');
-    receipt.className = font;
+    receipt.classList.remove('font-thermal', 'font-courier', 'font-mono', 'font-arabic');
+    receipt.classList.add(font);
   }
 
   function changeFontSize() {
@@ -368,19 +476,13 @@ Thank you for your purchase!</textarea>
   /* ============ إضافة الباركود ============ */
   function addBarcode() {
     const text = document.getElementById('barcodeText').value.trim();
-    if (!text) {
-      alert('⚠️ اكتب نص الباركود أولاً');
-      return;
-    }
+    if (!text) { alert('⚠️ اكتب نص الباركود أولاً'); return; }
     createBarcodeElement(text);
   }
 
   function addBarcodeMultiple() {
     const text = document.getElementById('barcodeText').value.trim();
-    if (!text) {
-      alert('⚠️ اكتب نص الباركود أولاً');
-      return;
-    }
+    if (!text) { alert('⚠️ اكتب نص الباركود أولاً'); return; }
     createBarcodeElement(text);
     setTimeout(() => createBarcodeElement(text), 100);
   }
@@ -392,8 +494,7 @@ Thank you for your purchase!</textarea>
     wrapper.dataset.type = 'barcode';
     wrapper.dataset.id = 'el_' + (++elementCounter);
     wrapper.dataset.scale = '1';
-    
-    // موضع مبدئي
+
     const top = 20 + Math.random() * 30;
     wrapper.style.top = top + 'mm';
     wrapper.style.left = '3mm';
@@ -402,7 +503,6 @@ Thank you for your purchase!</textarea>
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     wrapper.appendChild(svg);
 
-    // مقبض السحب
     const handle = document.createElement('div');
     handle.className = 'drag-handle';
     wrapper.appendChild(handle);
@@ -430,10 +530,7 @@ Thank you for your purchase!</textarea>
   /* ============ إضافة الصورة ============ */
   function addImage() {
     const input = document.getElementById('imageInput');
-    if (!input.files || !input.files[0]) {
-      alert('⚠️ اختر صورة أولاً');
-      return;
-    }
+    if (!input.files || !input.files[0]) { alert('⚠️ اختر صورة أولاً'); return; }
     const reader = new FileReader();
     reader.onload = function(e) {
       const receipt = document.getElementById('receipt');
@@ -485,11 +582,10 @@ Thank you for your purchase!</textarea>
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       const receiptRect = document.getElementById('receipt').getBoundingClientRect();
-      
+
       let newLeft = origX + dx - receiptRect.left;
       let newTop = origY + dy - receiptRect.top;
 
-      // حدود الفاتورة
       newLeft = Math.max(0, Math.min(newLeft, receiptRect.width - 20));
       newTop = Math.max(0, Math.min(newTop, receiptRect.height - 20));
 
@@ -501,7 +597,6 @@ Thank you for your purchase!</textarea>
       isDown = false;
     });
 
-    // دعم اللمس
     el.addEventListener('touchstart', function(e) {
       const touch = e.touches[0];
       isDown = true;
@@ -519,7 +614,7 @@ Thank you for your purchase!</textarea>
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
       const receiptRect = document.getElementById('receipt').getBoundingClientRect();
-      
+
       let newLeft = origX + dx - receiptRect.left;
       let newTop = origY + dy - receiptRect.top;
 
@@ -586,7 +681,7 @@ Thank you for your purchase!</textarea>
     if (!selectedElement) { alert('⚠️ اختر عنصراً أولاً'); return; }
     const rect = selectedElement.getBoundingClientRect();
     const receiptRect = document.getElementById('receipt').getBoundingClientRect();
-    
+
     let newLeft = rect.left - receiptRect.left + dx;
     let newTop = rect.top - receiptRect.top + dy;
 
@@ -629,7 +724,6 @@ Thank you for your purchase!</textarea>
   /* ============ تحميل PDF ============ */
   function downloadPDF() {
     const element = document.getElementById('receipt');
-    // إخفاء المقابض مؤقتاً
     const handles = document.querySelectorAll('.drag-handle');
     handles.forEach(h => h.style.display = 'none');
     if (selectedElement) selectedElement.classList.remove('selected');
@@ -660,6 +754,7 @@ Thank you for your purchase!</textarea>
   window.addEventListener('DOMContentLoaded', () => {
     updateReceipt();
     changeFontSize();
+    setDirection('ltr');
   });
 </script>
 
