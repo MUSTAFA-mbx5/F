@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>طباعة فواتير 80mm - Thermal Printer</title>
+<title>طباعة فواتير 80mm - Thermal Printer XP-80C</title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
@@ -17,7 +17,7 @@
     background: #e9ecef;
     display: flex;
     justify-content: center;
-    padding: 20px;
+    padding: 20px 20px 60px 20px;
     gap: 20px;
     flex-wrap: wrap;
     font-family: 'Tahoma', sans-serif;
@@ -126,7 +126,6 @@
   .dir-buttons button:hover { background: #138496; }
   .dir-buttons button.active:hover { background: #218838; }
 
-  /* ============ الباركود الجاهز ============ */
   .barcode-types {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -144,7 +143,6 @@
     box-shadow: 0 0 0 2px #1e7e34 inset;
   }
 
-  /* ملاحظة EAN-13 */
   .info-box {
     background: #fff3cd;
     border: 1px solid #ffc107;
@@ -158,7 +156,9 @@
   .info-box strong { color: #d39e00; }
 
   /* ============ منطقة الفاتورة ============ */
-  #receiptWrapper { position: relative; }
+  #receiptWrapper {
+    position: relative;
+  }
   #receipt {
     width: 80mm;
     min-height: 100mm;
@@ -255,25 +255,81 @@
     100% { transform: translateX(-100%); }
   }
 
-  /* إعدادات الطباعة */
+  /* ========================================= */
+  /* ====== إعدادات الطباعة المُصلَحة ======= */
+  /* ========================================= */
   @media print {
-    body * { visibility: hidden; }
-    #receipt, #receipt * { visibility: visible; }
-    #receipt {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 80mm;
-      box-shadow: none;
-      border-radius: 0;
-      padding: 2mm 3mm;
+    /* إخفاء كل شيء ما عدا الفاتورة */
+    body * {
+      visibility: hidden;
     }
-    .draggable { border-color: transparent !important; }
-    .drag-handle { display: none !important; }
-    .marquee-bar { display: none !important; }
+    #receipt, #receipt * {
+      visibility: visible;
+    }
+    
+    /* إخفاء شريط الحقوق ومنطقة التحكم */
+    .marquee-bar,
+    .controls,
+    .drag-handle {
+      display: none !important;
+      visibility: hidden !important;
+    }
+
+    /* إخفاء الحدود المحددة */
+    .draggable {
+      border-color: transparent !important;
+      box-shadow: none !important;
+    }
+
+    /* إعادة تعيين الجسم */
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
+      display: block !important;
+      min-height: auto !important;
+    }
+
+    /* الفاتورة نفسها - تثبيت دقيق */
+    #receiptWrapper {
+      position: static !important;
+    }
+    #receipt {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 80mm !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 2mm 3mm !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+      page-break-before: avoid !important;
+      overflow: visible !important;
+      background: #fff !important;
+    }
+
+    /* منع أي فواصل صفحات */
+    html, body {
+      width: 80mm !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    /* إعداد الصفحة - مهم لطابعة XP-80C */
     @page {
       size: 80mm auto;
       margin: 0;
+      padding: 0;
+    }
+
+    /* منع الصفحات الفارغة */
+    #receipt::after,
+    #receipt::before {
+      display: none !important;
+      content: none !important;
     }
   }
 </style>
@@ -384,7 +440,7 @@ Thank you for your purchase!</textarea>
   <!-- ===== الإجراءات ===== -->
   <div class="section-title">🚀 الإجراءات</div>
   <button class="btn-add btn-full" onclick="updateReceipt()">🔄 تحديث الفاتورة</button>
-  <button class="btn-print btn-full" onclick="window.print()">🖨️ طباعة مباشرة</button>
+  <button class="btn-print btn-full" onclick="printReceipt()">🖨️ طباعة مباشرة</button>
   <button class="btn-pdf btn-full" onclick="downloadPDF()">📄 تحميل PDF</button>
   <button class="btn-clear btn-full" onclick="clearAll()">🗑️ مسح الكل</button>
 </div>
@@ -565,7 +621,6 @@ Thank you for your purchase!</textarea>
 
     receipt.appendChild(wrapper);
 
-    // إعدادات خاصة لكل نوع
     const options = {
       format: currentBarcodeType,
       width: 1.8,
@@ -577,13 +632,11 @@ Thank you for your purchase!</textarea>
       textMargin: 2
     };
 
-    // تعديل خاص لـ EAN-13
     if (currentBarcodeType === 'EAN13') {
       options.flat = true;
       options.width = 1.6;
       options.height = 60;
     }
-    // تعديل خاص لـ UPC
     if (currentBarcodeType === 'UPC') {
       options.flat = true;
     }
@@ -788,6 +841,33 @@ Thank you for your purchase!</textarea>
       case '-': scaleDown(); break;
     }
   });
+
+  /* ============================================ */
+  /* ====== دالة الطباعة المُصلَحة ============= */
+  /* ============================================ */
+  function printReceipt() {
+    // 1) إزالة التحديد من أي عنصر
+    if (selectedElement) {
+      selectedElement.classList.remove('selected');
+    }
+
+    // 2) إخفاء كل مقابض السحب مؤقتاً
+    const handles = document.querySelectorAll('.drag-handle');
+    handles.forEach(h => h.style.display = 'none');
+
+    // 3) التأكد من تحديث النص
+    updateReceipt();
+
+    // 4) انتظار قصير ثم الطباعة
+    setTimeout(() => {
+      window.print();
+      
+      // 5) إعادة المقابض بعد الطباعة
+      setTimeout(() => {
+        handles.forEach(h => h.style.display = '');
+      }, 500);
+    }, 100);
+  }
 
   /* ============ PDF ============ */
   function downloadPDF() {
