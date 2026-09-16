@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Receipt Template</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#eee;font-family:Arial,sans-serif}
+  .toolbar{
+    position:sticky;top:0;z-index:5;background:#222;color:#fff;
+    padding:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center
+  }
+  button{border:0;border-radius:5px;padding:8px 12px;cursor:pointer}
+  .receipt{
+    width:80mm;min-height:210mm;margin:18px auto;background:#fff;
+    padding:4mm 3mm;color:#000;font-family:"Courier New",monospace;
+    font-size:11px;line-height:1.28;
+    box-shadow:0 2px 12px #aaa
+  }
+  .center{text-align:center}
+  .line{white-space:pre-wrap}
+  .editable{outline:none}
+  .editable:focus{background:#fff6a8}
+  .gap{height:4px}
+  .big{font-size:12px}
+  .amount{font-weight:bold}
+  .ad{font-size:8px;line-height:1.25;text-align:center;margin-top:5px}
+  .barcode{
+    height:35px;margin:7px auto 3px;width:90%;
+    display:flex;align-items:stretch;justify-content:center;overflow:hidden
+  }
+  .bar{height:100%;display:inline-block;background:#000}
+  @media print{
+    body{background:#fff}
+    .toolbar{display:none}
+    .receipt{margin:0;box-shadow:none;width:80mm;min-height:210mm}
+    @page{size:80mm auto;margin:0}
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button onclick="window.print()">طباعة</button>
+  <button onclick="saveHTML()">حفظ HTML</button>
+  <button onclick="resetReceipt()">إرجاع البيانات الأصلية</button>
+  <span>اضغط على أي نص لتعديله</span>
+</div>
+
+<div id="receipt" class="receipt" contenteditable="false">
+  <div class="center big editable" contenteditable="true">Sharaf DG</div>
+  <div class="center editable" contenteditable="true">AL WAHDA MALL MOSQUE ABU DHABI UAE</div>
+  <div class="gap"></div>
+
+  <div class="line editable" contenteditable="true">BATCH: 590 RECEIPT NO : 003805 DATE : 11/04/14 TIME : 13:28:26 APP VERS : 7.31</div>
+  <div class="line editable" contenteditable="true">POS ID: 0/ 0/ 0/ 67880</div>
+  <div class="line editable" contenteditable="true">MID: 29731254</div>
+  <div class="gap"></div>
+
+  <div class="line editable" contenteditable="true">PURCHASE</div>
+  <div class="line editable" contenteditable="true">MASTER (I) EXP *****</div>
+  <div class="line editable" contenteditable="true">**** **** **** 7841</div>
+  <div class="line editable" contenteditable="true">PAN SEQ NO : 0/0/1</div>
+  <div class="line editable" contenteditable="true">MOHAMED/</div>
+  <div class="line amount editable" contenteditable="true">AMOUNT AED 1,199.0/ 0/</div>
+  <div class="line editable" contenteditable="true">PLEASE DEBIT MY ACCOUNT</div>
+  <div class="line editable" contenteditable="true">APPROVAL CODE R0/ 8770/</div>
+  <div class="line editable" contenteditable="true">AID : A0/0/ 0/ 0/0/0/0/ 0/410/10/</div>
+  <div class="line editable" contenteditable="true">APP NAME : MasterCard PRE.Name : MasterCard TVR : 0/ 0/0/0/ 0/480/ 0/0/</div>
+  <div class="line editable" contenteditable="true">TSI : E80/0/</div>
+  <div class="line editable" contenteditable="true">AC INFO : 40/</div>
+  <div class="line editable" contenteditable="true">AC : BA755D480/4984958</div>
+  <div class="gap"></div>
+
+  <div class="center editable" contenteditable="true">THANK YOU VISIT AGAIN NATIONAL BANK OF ABU DHABI</div>
+  <div class="center editable" contenteditable="true">&lt; CUSTOMER COPY &gt;</div>
+
+  <div id="barcode" class="barcode" aria-label="barcode"></div>
+
+  <div class="ad editable" contenteditable="true">
+    ********************** WATCH YOUR FAVORIT MOVIES FROM AED 10 AT CINE ROYAL,
+    OSCAR CINEMA AND REEL CINEMAS. TO APPLY, SMS ‘CARD’ TO 2050.
+    VISIT WWW.NBAD.COM T &amp; C APPLY. **********************
+  </div>
+</div>
+
+<script>
+const original = document.getElementById('receipt').innerHTML;
+
+function makeBarcode(){
+  const box=document.getElementById('barcode');
+  box.innerHTML='';
+  const pattern="101100111010011010110010100111011001010011010110011101001101001011011001010011101101001";
+  [...pattern].forEach(x=>{
+    const s=document.createElement('span');
+    s.className='bar';
+    s.style.width=x==='1'?'2px':'1px';
+    box.appendChild(s);
+  });
+}
+function resetReceipt(){
+  document.getElementById('receipt').innerHTML=original;
+  makeBarcode();
+}
+function saveHTML(){
+  const clone=document.documentElement.cloneNode(true);
+  clone.querySelectorAll('.toolbar').forEach(x=>x.remove());
+  const html='<!DOCTYPE html>\\n'+clone.outerHTML;
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='receipt_template.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+makeBarcode();
+</script>
+</body>
+</html>
