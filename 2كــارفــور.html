@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrefour Receipt 80mm</title>
+    <style>
+        /* إعدادات الخط والخلفية العامة للمتصفح */
+        body {
+            background-color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        /* لوحة التحكم باللوكو */
+        .controls {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .controls label {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .controls input[type="file"] {
+            font-size: 14px;
+        }
+
+        /* حاوية الفاتورة لضبط تحديد المواقع */
+        .receipt-wrapper {
+            position: relative;
+            width: 80mm; /* حجم الفاتورة 80 ملم */
+            background-color: #fcfcfc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            padding: 10px 15px;
+            box-sizing: border-box;
+            overflow: hidden; /* لمنع اللوكو من الخروج عن الفاتورة */
+        }
+
+        /* تصميم الفاتورة (النصوص) */
+        .receipt-content {
+            font-family: 'Courier New', Courier, monospace; /* خط يشبه الطابعة الحرارية */
+            font-size: 12px;
+            color: #111;
+            line-height: 1.4;
+            direction: ltr; /* الفاتورة الأساسية بالإنجليزية */
+            text-align: left;
+        }
+
+        /* تنسيقات العناصر داخل الفاتورة */
+        .header-ar {
+            direction: rtl;
+            text-align: right;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .header-en {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+        }
+
+        .flex-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .indent {
+            padding-left: 15px;
+        }
+
+        .currency-box {
+            border: 1px solid #ccc;
+            padding: 5px;
+            margin-top: 10px;
+            background-color: #f0f0f0;
+        }
+
+        /* اللوكو القابل للسحب والتحجيم */
+        #draggable-logo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 60px; /* الحجم الافتراضي */
+            cursor: move;
+            z-index: 100;
+            display: none; /* مخفي حتى يتم رفعه */
+            /* لضمان عدم تأثر النص بحركة اللوكو */
+            pointer-events: auto; 
+        }
+
+        /* لتمييز النصوص القابلة للتعديل عند المرور عليها */
+        [contenteditable="true"]:hover {
+            outline: 1px dashed #999;
+            background-color: rgba(0,0,0,0.02);
+        }
+        
+        [contenteditable="true"]:focus {
+            outline: 2px solid #007bff;
+            background-color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- لوحة التحكم (خارج الفاتورة) -->
+    <div class="controls">
+        <label>إضافة اللوكو:</label>
+        <input type="file" id="logoUpload" accept="image/*">
+        
+        <label>حجم اللوكو:</label>
+        <input type="range" id="logoSize" min="20" max="200" value="60">
+        <span style="font-size: 12px; color: #555;">(اسحب اللوكو داخل الفاتورة لتغيير مكانه)</span>
+    </div>
+
+    <!-- حاوية الفاتورة -->
+    <div class="receipt-wrapper" id="receiptWrapper">
+        
+        <!-- صورة اللوكو القابلة للسحب (تظهر فقط عند رفع صورة) -->
+        <img id="draggable-logo" src="" alt="Logo">
+
+        <!-- محتوى الفاتورة -->
+        <div class="receipt-content" id="receiptContent">
+            
+            <!-- الترويسة -->
+            <div class="header-ar">
+                <span contenteditable="true">كارفور</span>
+                <span style="font-size: 18px;">⬤</span> <!-- يمكن استبدالها باللوجو الأصلي -->
+            </div>
+            
+            <div class="header-en">
+                <div class="bold" style="font-size: 16px;" contenteditable="true">Carrefour</div>
+                <div contenteditable="true">City Center Deira</div>
+                <div class="bold" contenteditable="true">Dubai</div>
+                <div contenteditable="true" style="margin-top: 5px;">MAJID AL FUTTAIM HYPERMARKETS LLC</div>
+                <div contenteditable="true">PO BOX 22797, Dubai, UAE</div>
+                <div contenteditable="true">TRN:100025416700003</div>
+                <div class="bold" contenteditable="true">FOR INQUIRIES CALL 800 7 32 32</div>
+                <div contenteditable="true">www.carrefouruae.com/contact-us</div>
+                <div class="bold" style="margin-top: 10px;" contenteditable="true">* CUSTOMER COPY *</div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- تفاصيل العملية -->
+            <div class="flex-row">
+                <span contenteditable="true">23/09/26</span>
+                <span contenteditable="true">14:52:00</span>
+            </div>
+            <div class="bold" style="font-size: 14px; margin: 5px 0;" contenteditable="true">PURCHASE-APPROVED</div>
+            
+            <div contenteditable="true">VISA, 442380******9974</div>
+
+            <div class="divider"></div>
+
+            <!-- المبالغ -->
+            <div class="flex-row">
+                <span contenteditable="true">GOODS TOTAL</span>
+                <span contenteditable="true">: AED 45.22</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">EXCHANGE RATE</span>
+                <span contenteditable="true">: 0.3731277</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">INCLUSIVE OF</span>
+                <span contenteditable="true">7.10 PERCENT MARGIN</span>
+            </div>
+            
+            <div class="divider"></div>
+
+            <div class="flex-row bold" style="font-size: 14px;">
+                <span contenteditable="true">AMOUNT SGD</span>
+                <span contenteditable="true">16.87</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- اختيار العملة -->
+            <div style="font-size: 10px; margin-bottom: 5px;" contenteditable="true">
+                PLEASE SELECT TRANSACTION CURRENCY BY CHECKING [X] ONE OF THE BOXES BELOW
+            </div>
+            
+            <div class="currency-box">
+                <div class="flex-row">
+                    <span contenteditable="true">SGD</span>
+                    <span contenteditable="true">16.87 [X]</span>
+                </div>
+                <div class="flex-row">
+                    <span contenteditable="true">AED</span>
+                    <span contenteditable="true">45.22 [ ]</span>
+                </div>
+                <div style="font-size: 9px; margin-top: 5px; text-align: justify;" contenteditable="true">
+                    I ACCEPT THAT I HAVE BEEN GIVEN A CHOICE OF CURRENCIES FOR PAYMENT AND THAT THIS CHOICE IS FINAL. I ACCEPT THE CONVERSION RATE, THE FINAL AMOUNT AND THE SELECTED TRANSACTION. THIS CURRENCY CONVERSION SERVICE IS PROVIDED BY NETWORK INTERNATIONAL
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- معلومات الشبكة والجهاز -->
+            <div class="flex-row">
+                <span contenteditable="true">AID</span>
+                <span contenteditable="true">: A0000000031010</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">Cryptogram</span>
+                <span contenteditable="true">: DE18A52CE41CDE3A</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">TSI</span>
+                <span contenteditable="true">: 0000</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">TVR</span>
+                <span contenteditable="true">: 00 00 00 00 00</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">EMV TAG 9F5D</span>
+                <span contenteditable="true">: 000000000000</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">PAN Entry</span>
+                <span contenteditable="true">: ICC</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">AUTH 8259T2</span>
+                <span contenteditable="true">SEQ NO:007877</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">TERMINAL ID:31000017</span>
+            </div>
+            <div class="flex-row">
+                <span contenteditable="true">MERCHANT ID:054152030001</span>
+            </div>
+            
+            <div style="margin-top: 5px;" contenteditable="true">23/09/26 15:34 0003 07 0122 103</div>
+
+            <div class="divider"></div>
+
+            <!-- التذييل -->
+            <div class="center bold" style="font-size: 16px; margin-top: 10px;" contenteditable="true">
+                THANK YOU
+            </div>
+            <div class="center" style="font-size: 10px; margin-bottom: 20px;" contenteditable="true">
+                PLEASE KEEP THIS COPY FOR YOUR RECORD
+            </div>
+
+        </div>
+    </div>
+
+    <!-- سكربت جافاسكربت للتحكم باللوكو -->
+    <script>
+        const logoUpload = document.getElementById('logoUpload');
+        const draggableLogo = document.getElementById('draggable-logo');
+        const logoSize = document.getElementById('logoSize');
+        const receiptWrapper = document.getElementById('receiptWrapper');
+
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        // 1. رفع الصورة
+        logoUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    draggableLogo.src = event.target.result;
+                    draggableLogo.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 2. التحكم بالحجم
+        logoSize.addEventListener('input', function(e) {
+            draggableLogo.style.width = e.target.value + 'px';
+        });
+
+        // 3. السحب والإفلات (Drag and Drop)
+        draggableLogo.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            // حساب مكان المؤشر بالنسبة للصورة
+            offsetX = e.clientX - draggableLogo.getBoundingClientRect().left;
+            offsetY = e.clientY - draggableLogo.getBoundingClientRect().top;
+            
+            // تغيير شكل المؤشر
+            draggableLogo.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                // حساب الإحداثيات الجديدة داخل حاوية الفاتورة
+                const wrapperRect = receiptWrapper.getBoundingClientRect();
+                
+                let newLeft = e.clientX - wrapperRect.left - offsetX;
+                let newTop = e.clientY - wrapperRect.top - offsetY;
+
+                // منع الخروج عن حدود الفاتورة
+                newLeft = Math.max(0, Math.min(newLeft, wrapperRect.width - draggableLogo.offsetWidth));
+                newTop = Math.max(0, Math.min(newTop, wrapperRect.height - draggableLogo.offsetHeight));
+
+                draggableLogo.style.left = newLeft + 'px';
+                draggableLogo.style.top = newTop + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                draggableLogo.style.cursor = 'move';
+            }
+        });
+    </script>
+
+</body>
+</html>
