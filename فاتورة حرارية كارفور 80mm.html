@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>محرر فاتورة كارفور الحرارية (80mm)</title>
+  
+  <!-- مكتبات التصدير لـ PDF والصور -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Noto+Sans+Arabic:wght@400;700;900&display=swap');
+
+    :root {
+      --thermal-bg: #ffffff;
+      --thermal-text: #000000;
+      --font-mono: 'Courier New', Courier, monospace; /* استخدام الخط الكلاسيكي للواقعية */
+      --font-arabic: 'Noto Sans Arabic', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #f1f5f9;
+      font-family: var(--font-arabic);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 10px;
+      color: #333;
+    }
+
+    .controls {
+      background: #ffffff;
+      padding: 15px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      margin-bottom: 25px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 600px;
+      width: 100%;
+      border: 1px solid #e2e8f0;
+    }
+
+    .btn {
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-print { background: #3b82f6; }
+    .btn-print:hover { background: #2563eb; }
+
+    .btn-image { background: #10b981; }
+    .btn-image:hover { background: #059669; }
+
+    .btn-pdf { background: #8b5cf6; }
+    .btn-pdf:hover { background: #7c3aed; }
+
+    .btn-reset { background: #64748b; }
+    .btn-reset:hover { background: #475569; }
+
+    .instruction {
+      width: 100%;
+      text-align: center;
+      font-size: 13px;
+      color: #475569;
+      margin-top: 10px;
+      line-height: 1.6;
+      background: #f8fafc;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .receipt-wrapper {
+      background: white;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+      padding: 15px 12px;
+      /* عرض 80mm مثالي للطابعات الحرارية */
+      width: 80mm; 
+      min-height: 100mm;
+      box-sizing: border-box;
+      position: relative;
+    }
+
+    #receipt-content {
+      background-color: var(--thermal-bg);
+      color: var(--thermal-text);
+      font-family: var(--font-mono);
+      font-size: 12px; /* تكبير الخط قليلا ليطابق الواقع */
+      line-height: 1.15;
+      font-weight: 600; /* جعل الخط سميك كأنه حبر حراري */
+      width: 100%;
+      direction: ltr;
+      text-align: left;
+      text-transform: uppercase; /* أغلب الفواتير الحرارية أحرف كبيرة */
+    }
+
+    [contenteditable="true"] {
+      outline: none;
+      transition: background 0.2s, box-shadow 0.2s;
+      border-radius: 2px;
+    }
+
+    [contenteditable="true"]:hover {
+      background-color: rgba(253, 224, 71, 0.4);
+      cursor: text;
+    }
+
+    [contenteditable="true"]:focus {
+      background-color: rgba(253, 224, 71, 0.8);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+
+    .brand-header-inline {
+      display: flex;
+      justify-content: space-between; /* توزيع متباعد مثل الصورة */
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .brand-header-inline .en-brand {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: #000;
+      text-transform: none; /* استثناء شعار كارفور */
+    }
+
+    .brand-header-inline .ar-brand {
+      font-family: var(--font-arabic);
+      font-size: 22px;
+      font-weight: 900;
+      direction: rtl;
+      color: #000;
+      text-transform: none;
+    }
+
+    .brand-header-inline img {
+      height: 32px;
+      width: auto;
+      cursor: pointer;
+      filter: grayscale(100%) contrast(200%) brightness(0);
+      object-fit: contain;
+      transition: transform 0.2s;
+    }
+    
+    .brand-header-inline img:hover {
+      transform: scale(1.05);
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: 4px;
+    }
+
+    .sub-header {
+      font-family: var(--font-arabic), var(--font-mono);
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 2px;
+      direction: rtl;
+      text-transform: none;
+    }
+
+    .company-info {
+      text-align: left;
+      font-size: 11px;
+      margin: 12px 0;
+      line-height: 1.3;
+    }
+
+    .banner-title {
+      text-align: center;
+      font-size: 16px;
+      margin: 12px 0 8px 0;
+      letter-spacing: 1px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+    }
+
+    .status-large { 
+      font-size: 20px; 
+      margin: 8px 0; 
+      transform: scaleY(1.1); /* محاكاة تمدد الخط في الطابعة */
+      letter-spacing: -0.5px;
+    }
+
+    .line-solid { border-top: 1px solid #000; margin: 4px 0; }
+
+    /* محاذاة دقيقة للأعمدة (مثل الصورة) */
+    .align-row { display: flex; margin: 2px 0; }
+    .col-label { width: 155px; } 
+    .col-value { flex: 1; }
+
+    .terms-text {
+      font-size: 11px;
+      text-align: left;
+      line-height: 1.2;
+      margin: 8px 0;
+      padding-right: 5px;
+    }
+
+    .footer { text-align: center; margin-top: 15px; padding-top: 8px;}
+    .footer .thank-you { font-size: 18px; margin-bottom: 4px; transform: scaleY(1.1);}
+    .footer .keep-copy { font-size: 11px; }
+
+    @media print {
+      body { background: none; padding: 0; margin: 0; }
+      .controls, .no-print { display: none !important; }
+      .receipt-wrapper {
+        box-shadow: none;
+        padding: 0;
+        margin: 0;
+        width: 80mm !important;
+        max-width: 80mm !important;
+      }
+      @page { size: 80mm auto; margin: 0mm; }
+      [contenteditable="true"]:hover, [contenteditable="true"]:focus {
+        background-color: transparent !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="controls no-print">
+    <button class="btn btn-print" onclick="window.print()">
+      🖨️ طباعة الفاتورة
+    </button>
+    <button class="btn btn-image" onclick="downloadImage()">
+      🖼️ حفظ كصورة (PNG)
+    </button>
+    <button class="btn btn-pdf" onclick="downloadPDF()">
+      📄 تحميل PDF
+    </button>
+    <button class="btn btn-reset" onclick="resetContent()">
+      🔄 إعادة ضبط
+    </button>
+    <div class="instruction">
+      💡 <strong>تعديل النصوص:</strong> انقر مباشرة على أي نص لتعديله.<br>
+      🖼️ <strong>تغيير الشعار:</strong> انقر على الشعار الأسود في الفاتورة لرفع شعار جديد من جهازك!
+    </div>
+  </div>
+
+  <!-- إدخال مخفي لرفع الشعار -->
+  <input type="file" id="logo-upload" accept="image/*" style="display: none;" onchange="loadCustomLogo(event)">
+
+  <div class="receipt-wrapper">
+    <div id="receipt-content">
+      
+      <!-- الرأس: الإنجليزي، الشعار، العربي -->
+      <div class="brand-header-inline">
+        <span class="en-brand" contenteditable="true">Carrefour</span>
+        <img id="logo-img" src="https://www.mallgiftcard.ae/assets/sybmol-xl.png" alt="Logo" crossorigin="anonymous" title="انقر لرفع شعار جديد" onclick="document.getElementById('logo-upload').click()">
+        <span class="ar-brand" contenteditable="true">كــارفــور</span>
+      </div>
+
+      <!-- الفروع والمدينة -->
+      <div class="sub-header">
+        <span contenteditable="true">City Center Deira</span>
+        <span contenteditable="true">سيتي سنتر ديرة</span>
+      </div>
+      <div class="sub-header" style="justify-content: center; gap: 30px;">
+        <span contenteditable="true">Dubai</span>
+        <span contenteditable="true">دبي</span>
+      </div>
+
+      <div class="company-info">
+        <div contenteditable="true">MAJID AL FUTTAIM HYPERMARKETS LLC</div>
+        <div contenteditable="true">PO BOX 22797, Dubai, UAE</div>
+        <div contenteditable="true">TRN:100025416700003</div>
+        <div contenteditable="true" style="font-weight: 700; margin-top: 2px;">FOR INQUIRIES CALL 800 7 32 32</div>
+        <div contenteditable="true" style="text-transform: lowercase;">www.carrefouruae.com/contact-us</div>
+      </div>
+
+      <div class="banner-title" contenteditable="true">* CUSTOMER COPY *</div>
+
+      <div class="info-row" style="margin-top: 10px;">
+        <span contenteditable="true">23/09/26</span>
+        <span contenteditable="true">14:52:00</span>
+      </div>
+
+      <div class="status-large" contenteditable="true">PURCHASE-APPROVED</div>
+
+      <div contenteditable="true" style="margin: 10px 0 15px 0;">VISA, 442380******9974</div>
+
+      <!-- المبالغ مع محاذاة النقطتين (:) بدقة -->
+      <div class="align-row">
+        <span class="col-label" contenteditable="true">GOODS TOTAL</span>
+        <span class="col-value" contenteditable="true">: AED 45.22</span>
+      </div>
+      <div class="align-row">
+        <span class="col-label" contenteditable="true">EXCHANGE RATE</span>
+        <span class="col-value" contenteditable="true">: 0.3731277</span>
+      </div>
+      <div contenteditable="true" style="margin-bottom: 12px;">INCLUSIVE OF 7.10 PERCENT MARGIN</div>
+
+      <div class="line-solid"></div>
+      <div class="info-row" style="margin: 4px 0;">
+        <span contenteditable="true" style="font-weight: 900;">AMOUNT SGD</span>
+        <span contenteditable="true" style="font-size: 13px; font-weight: 900; margin-right: 40px;">16.87</span>
+      </div>
+      <div class="line-solid"></div>
+
+      <div class="terms-text" contenteditable="true">
+        PLEASE SELECT TRANSACTION CURRENCY BY<br>CHECKING [X] ONE OF THE BOXES BELOW
+      </div>
+
+      <div class="align-row" style="margin-top: 8px;">
+        <span class="col-label" contenteditable="true" style="width: 100px;">SGD</span>
+        <span class="col-value" contenteditable="true">16.87 [X]</span>
+      </div>
+      <div class="align-row" style="margin-bottom: 8px;">
+        <span class="col-label" contenteditable="true" style="width: 100px;">AED</span>
+        <span class="col-value" contenteditable="true">45.22 [ ]</span>
+      </div>
+
+      <div class="terms-text" contenteditable="true">
+        I ACCEPT THAT I HAVE BEEN GIVEN A<br>CHOICE OF CURRENCIES FOR PAYMENT AND<br>THAT THIS CHOICE IS FINAL. I ACCEPT<br>THE CONVERSION RATE, THE FINAL AMOUNT<br>AND THE SELECTED TRANSACTION. THIS<br>CURRENCY CONVERSION SERVICE IS<br>PROVIDED BY NETWORK INTERNATIONAL
+      </div>
+
+      <!-- التفاصيل التقنية مع محاذاة دقيقة -->
+      <div style="font-size: 11px; margin-top: 5px;">
+        <div class="align-row">
+          <span class="col-label" contenteditable="true" style="text-transform: none; width: 140px;">AID</span>
+          <span class="col-value" contenteditable="true">: A0000000031010</span>
+        </div>
+        <div class="align-row">
+          <span class="col-label" contenteditable="true" style="text-transform: none; width: 140px;">Cryptogram</span>
+          <span class="col-value" contenteditable="true">: DE18A52CE41CDE3A</span>
+        </div>
+        <div class="align-row">
+          <span class="col-label" contenteditable="true" style="text-transform: none; width: 140px;">TSI</span>
+          <span class="col-value" contenteditable="true">: 0000</span>
+        </div>
+        <div class="align-row">
+          <span class="col-label" contenteditable="true" style="text-transform: none; width: 140px;">TVR</span>
+          <span class="col-value" contenteditable="true">: 00 00 00 00 00</span>
+        </div>
+        <div class="align-row">
+          <span class="col-label" contenteditable="true" style="text-transform: none; width: 140px;">EMV TAG 9F5D</span>
+          <span class="col-value" contenteditable="true">: 000000000000</span>
+        </div>
+        <div class="align-row" style="margin-bottom: 5px;">
+          <span class="col-label" contenteditable="true" style="text-transform: none; width: 140px;">PAN Entry</span>
+          <span class="col-value" contenteditable="true">: ICC</span>
+        </div>
+        
+        <div class="align-row">
+          <span class="col-label" contenteditable="true" style="width: 130px;">AUTH 8Z59T2</span>
+          <span class="col-value" contenteditable="true">SEQ NO:007877</span>
+        </div>
+        <div class="align-row">
+          <span class="col-label" contenteditable="true" style="width: 100px;">TERMINAL ID</span>
+          <span class="col-value" contenteditable="true">:31000017</span>
+        </div>
+        <div class="align-row">
+          <span class="col-label" contenteditable="true" style="width: 100px;">MERCHANT ID</span>
+          <span class="col-value" contenteditable="true">:054152030001</span>
+        </div>
+        <div contenteditable="true" style="margin-top: 3px;">
+          23/09/26 15:34 0003 07 0122 103
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="thank-you" contenteditable="true">THANK YOU</div>
+        <div class="keep-copy" contenteditable="true">PLEASE KEEP THIS COPY FOR YOUR RECORD</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // حفظ المحتوى الأصلي لإمكانية إعادة الضبط لاحقاً
+    let originalContent = '';
+    window.onload = () => {
+      originalContent = document.getElementById('receipt-content').innerHTML;
+    };
+
+    function resetContent() {
+      if(confirm("هل أنت متأكد من إعادة جميع البيانات إلى الوضع الأصلي؟")) {
+        document.getElementById('receipt-content').innerHTML = originalContent;
+      }
+    }
+
+    // وظيفة رفع وقراءة الشعار المخصص من المستخدم
+    function loadCustomLogo(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const imgElement = document.getElementById('logo-img');
+          imgElement.src = e.target.result;
+          imgElement.removeAttribute('crossorigin'); // الصور المرفوعة محلياً لا تحتاج CORS
+        }
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // حفظ الفاتورة كصورة PNG
+    function downloadImage() {
+      const element = document.getElementById('receipt-content');
+      
+      // إخفاء إشارات التعديل مؤقتاً
+      const editables = element.querySelectorAll('[contenteditable="true"]');
+      editables.forEach(el => el.setAttribute('contenteditable', 'false'));
+
+      html2canvas(element, {
+        scale: 3, // دقة عالية
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      }).then(canvas => {
+        // إعادة التفعيل
+        editables.forEach(el => el.setAttribute('contenteditable', 'true'));
+
+        const link = document.createElement('a');
+        link.download = 'Receipt_80mm.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }).catch(err => {
+        editables.forEach(el => el.setAttribute('contenteditable', 'true'));
+        alert('حدث خطأ أثناء حفظ الصورة: ' + err);
+      });
+    }
+
+    // تحميل الفاتورة كملف PDF مخصص بمقاس 80mm
+    function downloadPDF() {
+      const element = document.getElementById('receipt-content');
+      
+      const editables = element.querySelectorAll('[contenteditable="true"]');
+      editables.forEach(el => el.setAttribute('contenteditable', 'false'));
+      
+      // حساب ارتفاع الفاتورة الديناميكي بالمليمتر
+      const pxHeight = element.offsetHeight;
+      const mmHeight = Math.max(100, Math.ceil(pxHeight * 0.264583) + 10); // تحويل البكسل لمليمتر تقريبياً
+
+      const opt = {
+        margin:       [2, 2, 2, 2],
+        filename:     'Receipt_80mm.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 3, useCORS: true },
+        jsPDF:        { unit: 'mm', format: [80, mmHeight], orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(element).save().then(() => {
+        editables.forEach(el => el.setAttribute('contenteditable', 'true'));
+      });
+    }
+  </script>
+</body>
+</html>
