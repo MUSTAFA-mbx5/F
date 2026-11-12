@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Store - Sales Invoice</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Cairo for Arabic Currency -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Cairo', sans-serif;
+            background-color: #f3f4f6;
+        }
+        
+        /* Custom Print Styles to make it look exactly like an A4 printed invoice */
+        @media print {
+            body {
+                background-color: white !important;
+                margin: 0;
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .invoice-container {
+                box-shadow: none !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 15px !important;
+            }
+            /* Force background colors to print */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+
+        /* Subtle editable hover effect */
+        [contenteditable="true"]:hover {
+            background-color: rgba(59, 130, 246, 0.08);
+            outline: 1px dashed #3b82f6;
+            border-radius: 4px;
+            cursor: text;
+        }
+        [contenteditable="true"]:focus {
+            background-color: rgba(59, 130, 246, 0.12);
+            outline: 2px solid #2563eb;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="py-6 px-2 sm:px-6 lg:px-8 text-gray-900">
+
+    <!-- Control Bar (Hidden on Print) -->
+    <div class="no-print max-w-4xl mx-auto mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-black text-white rounded-lg flex items-center justify-center font-bold">
+                <i class="fa-solid fa-file-invoice"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-gray-800 text-sm sm:text-base">نظام فواتير Master Store</h1>
+                <p class="text-xs text-gray-500">يمكنك النقر على أي نص داخل الفاتورة لتعديله مباشرة</p>
+            </div>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-2">
+            <button onclick="addRow()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs sm:text-sm font-medium rounded-lg transition flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> إضافة منتج
+            </button>
+            <button onclick="recalculateTotals()" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs sm:text-sm font-medium rounded-lg transition flex items-center gap-2">
+                <i class="fa-solid fa-calculator"></i> تحديث المجموع
+            </button>
+            <button onclick="window.print()" class="px-4 py-2 bg-black hover:bg-gray-800 text-white text-xs sm:text-sm font-medium rounded-lg shadow-sm transition flex items-center gap-2">
+                <i class="fa-solid fa-print"></i> طباعة / حفظ PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="no-print fixed bottom-5 right-5 bg-gray-900 text-white px-4 py-2.5 rounded-lg shadow-lg text-sm transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        تم تحديث المجموع تلقائياً
+    </div>
+
+    <!-- Main Invoice Paper Container (A4 Proportions) -->
+    <div class="invoice-container max-w-4xl mx-auto bg-white shadow-xl rounded-sm p-6 sm:p-12 border border-gray-200 relative overflow-hidden">
+        
+        <!-- Top Black Header Band -->
+        <div class="bg-[#18181b] text-white p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+            
+            <!-- Left Side: Master Store Logo & Invoice Title -->
+            <div class="flex flex-col justify-between h-full space-y-6">
+                <!-- Master Store SVG Logo -->
+                <div class="flex flex-col items-center w-fit">
+                    <svg class="w-16 h-12 text-white fill-current" viewBox="0 0 120 95" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Top V Chevron -->
+                        <path d="M15 15 L52 52 C56 56 64 56 68 52 L105 15 C110 10 118 18 113 24 L72 65 C65 72 55 72 48 65 L7 24 C2 18 10 10 15 15 Z" />
+                        <!-- Left Leaf -->
+                        <path d="M10 48 C32 48 45 65 45 88 C22 88 10 70 10 48 Z" />
+                        <!-- Right Leaf -->
+                        <path d="M110 48 C88 48 75 65 75 88 C98 88 110 70 110 48 Z" />
+                    </svg>
+                    <span class="text-xs font-bold tracking-wide mt-1">Master store</span>
+                </div>
+
+                <!-- Large Word "Invoice" -->
+                <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">Invoice</h2>
+            </div>
+
+            <!-- Right Side: Apple Premium Reseller & Contact Info -->
+            <div class="flex flex-col items-start sm:items-end justify-between space-y-5 text-xs sm:text-sm">
+                <!-- Apple Logo + Premium Reseller -->
+                <div class="flex flex-col items-start sm:items-center">
+                    <i class="fa-brands fa-apple text-3xl sm:text-4xl text-white mb-1"></i>
+                    <div class="text-center leading-tight">
+                        <div class="font-semibold text-gray-100">Premium</div>
+                        <div class="font-semibold text-gray-100">Reseller</div>
+                    </div>
+                </div>
+
+                <!-- Contact Details -->
+                <div class="space-y-1.5 text-gray-200 text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-regular fa-envelope w-4 text-center text-gray-400"></i>
+                        <span contenteditable="true">info@masterstor.com</span>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-globe w-4 text-center text-gray-400"></i>
+                        <span contenteditable="true">www.masterstor.com</span>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-phone-volume w-4 text-center text-gray-400"></i>
+                        <span contenteditable="true">16255</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-header: Sales Invoice & Serial Code -->
+        <div class="mt-4 text-right">
+            <h3 class="text-lg sm:text-xl font-bold text-gray-900">Sales Invoice</h3>
+            <p class="text-sm font-medium text-gray-700 mt-0.5" contenteditable="true">ACC-SINV-2024-60421</p>
+        </div>
+
+        <!-- Divider Line -->
+        <hr class="my-5 border-gray-300">
+
+        <!-- Status Line -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 text-sm">
+            <div class="flex items-center justify-between sm:justify-start sm:gap-32">
+                <span class="font-bold text-gray-900">Status:</span>
+                <span class="font-medium text-gray-800 px-2 py-0.5 bg-green-50 text-green-700 rounded border border-green-200" contenteditable="true">Paid</span>
+            </div>
+        </div>
+
+        <!-- Customer & Location Details Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2.5 gap-x-8 text-sm mb-7">
+            <!-- Left Column -->
+            <div class="space-y-2.5">
+                <div class="grid grid-cols-3 items-center">
+                    <span class="font-bold text-gray-900">Location:</span>
+                    <span class="col-span-2 text-gray-800" contenteditable="true">Showroom Basra Twisah</span>
+                </div>
+                <div class="grid grid-cols-3 items-center">
+                    <span class="font-bold text-gray-900">Customer Name:</span>
+                    <span class="col-span-2 font-bold text-gray-900 text-base" contenteditable="true">Ibraheem Alazawi</span>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="space-y-2.5">
+                <div class="grid grid-cols-3 items-center">
+                    <span class="font-bold text-gray-900">Date:</span>
+                    <span class="col-span-2 font-bold text-gray-900" contenteditable="true">27-01-2024</span>
+                </div>
+                <div class="grid grid-cols-3 items-center">
+                    <span class="font-bold text-gray-900">Customer Phone:</span>
+                    <span class="col-span-2 text-gray-800" contenteditable="true">+9647707654209</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="overflow-x-auto mb-6">
+            <table class="w-full border-collapse border border-gray-400 text-sm" id="itemsTable">
+                <thead>
+                    <tr class="bg-[#d1d5db] text-gray-900 font-bold">
+                        <th class="border border-gray-400 py-2 px-3 text-left w-12">Sr</th>
+                        <th class="border border-gray-400 py-2 px-3 text-left">Item Name</th>
+                        <th class="border border-gray-400 py-2 px-3 text-right w-28">Quantity</th>
+                        <th class="border border-gray-400 py-2 px-3 text-right w-40">Amount</th>
+                        <th class="border border-gray-400 py-2 px-3 text-center w-44">Serial No</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody">
+                    <tr class="item-row">
+                        <td class="border border-gray-400 py-2.5 px-3 align-top" contenteditable="true">1</td>
+                        <td class="border border-gray-400 py-2.5 px-3 align-top leading-snug" contenteditable="true">
+                            iPhone 15 Pro Max 256GB<br>Black Titanium
+                        </td>
+                        <td class="border border-gray-400 py-2.5 px-3 text-right align-top" contenteditable="true">1 Unit</td>
+                        <td class="border border-gray-400 py-2.5 px-3 text-right align-top font-medium">
+                            <span class="item-amount" contenteditable="true" onblur="recalculateTotals()">1,650,000.000</span> <span dir="rtl">د.ع</span>
+                        </td>
+                        <td class="border border-gray-400 py-2.5 px-3 text-center align-top font-mono text-xs sm:text-sm" contenteditable="true">354679843435150</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totals Summary Section (Aligned to Right Half) -->
+        <div class="flex justify-end mb-8">
+            <div class="w-full sm:w-1/2 space-y-3 text-sm">
+                <div class="flex justify-between items-start">
+                    <span class="font-bold text-gray-900">Total</span>
+                    <span class="font-medium text-gray-900"><span id="subTotal">1,650,000.000</span> <span dir="rtl">د.ع</span></span>
+                </div>
+                
+                <div class="flex justify-between items-start">
+                    <span class="font-bold text-gray-900 leading-tight">Additional<br>Discount<br>Amount</span>
+                    <span class="font-medium text-gray-900"><span id="discountAmount" contenteditable="true" onblur="recalculateTotals()">0.000</span> <span dir="rtl">د.ع</span></span>
+                </div>
+
+                <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <span class="font-bold text-gray-900">Rounded Total:</span>
+                    <span class="font-bold text-base text-gray-900"><span id="roundedTotal">1,650,000.000</span> <span dir="rtl">د.ع</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode of Payment Table -->
+        <div class="overflow-x-auto mb-8">
+            <table class="w-full border-collapse border border-gray-400 text-sm">
+                <thead>
+                    <tr class="bg-[#d1d5db] text-gray-900 font-bold">
+                        <th class="border border-gray-400 py-2 px-3 text-left w-12">Sr</th>
+                        <th class="border border-gray-400 py-2 px-3 text-left w-1/2">Mode of Payment</th>
+                        <th class="border border-gray-400 py-2 px-3 text-left w-1/4"></th>
+                        <th class="border border-gray-400 py-2 px-3 text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-gray-400 py-2.5 px-3" contenteditable="true">1</td>
+                        <td class="border border-gray-400 py-2.5 px-3" contenteditable="true">BA-Basra Showroom</td>
+                        <td class="border border-gray-400 py-2.5 px-3"></td>
+                        <td class="border border-gray-400 py-2.5 px-3 text-right font-medium">
+                            <span id="paymentAmount" contenteditable="true">1,650,000.000</span> <span dir="rtl">د.ع</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Bottom Stamp Section -->
+        <div class="flex justify-end mb-10 pr-2">
+            <!-- Master Store Iraq Square Stamp -->
+            <div class="w-28 h-28 border-[3px] border-gray-900 rounded-xl p-1 flex items-center justify-center select-none transform -rotate-1">
+                <div class="w-full h-full border-[1.5px] border-gray-900 rounded-lg flex flex-col items-center justify-center p-1.5">
+                    <!-- Stamp Logo SVG -->
+                    <svg class="w-14 h-10 text-gray-900 fill-current" viewBox="0 0 120 95" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 15 L52 52 C56 56 64 56 68 52 L105 15 C110 10 118 18 113 24 L72 65 C65 72 55 72 48 65 L7 24 C2 18 10 10 15 15 Z" />
+                        <path d="M10 48 C32 48 45 65 45 88 C22 88 10 70 10 48 Z" />
+                        <path d="M110 48 C88 48 75 65 75 88 C98 88 110 70 110 48 Z" />
+                    </svg>
+                    <span class="text-[11px] font-extrabold text-gray-900 tracking-tight leading-none mt-1">Master store</span>
+                    <span class="text-[9px] font-bold text-gray-800 leading-none mt-0.5">Iraq</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Line & Page Number -->
+        <div class="mt-6">
+            <hr class="border-gray-300 mb-6">
+            <p class="text-center text-xs text-gray-700 font-medium" contenteditable="true">Page 1 of 5</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Format number with commas and 3 decimal places (Iraqi Dinar standard format)
+        function formatIQD(num) {
+            return num.toLocaleString('en-US', {
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3
+            });
+        }
+
+        // Parse formatted string back to float
+        function parseIQD(str) {
+            const cleaned = str.replace(/,/g, '').trim();
+            const val = parseFloat(cleaned);
+            return isNaN(val) ? 0 : val;
+        }
+
+        // Add a new item row to the table
+        function addRow() {
+            const tbody = document.getElementById('itemsBody');
+            const rowCount = tbody.querySelectorAll('tr').length + 1;
+            
+            const tr = document.createElement('tr');
+            tr.className = 'item-row';
+            tr.innerHTML = `
+                <td class="border border-gray-400 py-2.5 px-3 align-top" contenteditable="true">${rowCount}</td>
+                <td class="border border-gray-400 py-2.5 px-3 align-top leading-snug" contenteditable="true">New Apple Accessory / Product</td>
+                <td class="border border-gray-400 py-2.5 px-3 text-right align-top" contenteditable="true">1 Unit</td>
+                <td class="border border-gray-400 py-2.5 px-3 text-right align-top font-medium">
+                    <span class="item-amount" contenteditable="true" onblur="recalculateTotals()">50,000.000</span> <span dir="rtl">د.ع</span>
+                </td>
+                <td class="border border-gray-400 py-2.5 px-3 text-center align-top font-mono text-xs sm:text-sm" contenteditable="true">-</td>
+            `;
+            tbody.appendChild(tr);
+            recalculateTotals();
+        }
+
+        // Recalculate Subtotal, Discount, Rounded Total, and Payment Amount
+        function recalculateTotals() {
+            const amountElements = document.querySelectorAll('.item-amount');
+            let sum = 0;
+
+            amountElements.forEach(el => {
+                const val = parseIQD(el.innerText);
+                el.innerText = formatIQD(val);
+                sum += val;
+            });
+
+            const discountEl = document.getElementById('discountAmount');
+            const discount = parseIQD(discountEl.innerText);
+            discountEl.innerText = formatIQD(discount);
+
+            const finalTotal = Math.max(0, sum - discount);
+
+            document.getElementById('subTotal').innerText = formatIQD(sum);
+            document.getElementById('roundedTotal').innerText = formatIQD(finalTotal);
+            document.getElementById('paymentAmount').innerText = formatIQD(finalTotal);
+
+            showToast();
+        }
+
+        // Show subtle toast notification
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
