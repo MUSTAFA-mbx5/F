@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المدار ستور - Sales Invoice</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2canvas for exporting invoice as image -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Google Fonts: Inter & Cairo for Arabic Currency -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', 'Cairo', sans-serif;
+            background-color: #f1f5f9;
+        }
+        /* Custom Print Styles to make it look exactly like a single A4 printed invoice */
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+        @media print {
+            html, body {
+                width: 210mm !important;
+                height: 297mm !important;
+                max-height: 297mm !important;
+                overflow: hidden !important;
+                background-color: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .selected-logo {
+                outline: none !important;
+            }
+            .invoice-container {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+                max-width: 210mm !important;
+                padding: 9mm 12mm !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                page-break-after: avoid !important;
+                page-break-before: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            /* Force background colors to print */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+
+        /* Subtle editable hover effect */
+        [contenteditable="true"]:hover {
+            background-color: rgba(59, 130, 246, 0.08);
+            outline: 1px dashed #3b82f6;
+            border-radius: 4px;
+            cursor: text;
+        }
+        [contenteditable="true"]:focus {
+            background-color: rgba(59, 130, 246, 0.12);
+            outline: 2px solid #2563eb;
+            border-radius: 4px;
+        }
+
+        /* Drag & Resize Helpers */
+        .draggable-item {
+            position: relative;
+            transition: outline 0.15s ease;
+        }
+        .draggable-item:hover {
+            outline: 1px dashed #9ca3af;
+            border-radius: 4px;
+        }
+        .selected-logo {
+            outline: 2px solid #2563eb !important;
+            border-radius: 6px;
+        }
+        body.drag-mode .draggable-item {
+            cursor: move !important;
+            user-select: none;
+            outline: 1px dashed #3b82f6;
+            background-color: rgba(59, 130, 246, 0.04);
+        }
+        body.drag-mode [contenteditable="true"] {
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="py-6 px-2 sm:px-6 lg:px-8 text-gray-900">
+
+    <!-- Control Bar (Hidden on Print) -->
+    <div class="no-print max-w-[210mm] mx-auto mb-4 bg-white p-4 rounded-xl shadow-sm border border-blue-100 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-[#1e40af] text-white rounded-lg flex items-center justify-center font-bold shadow-sm">
+                    <i class="fa-solid fa-file-invoice"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-slate-800 text-sm sm:text-base">محرر فواتير المدار ستور</h1>
+                    <p class="text-[11px] text-slate-500">لـ GitHub: ضع صورة الشعار بنفس المجلد باسم <code class="bg-slate-100 px-1.5 py-0.5 rounded text-blue-700 font-mono font-bold">logo.png</code></p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="addRow()" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-medium rounded-lg transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i> منتج
+                </button>
+                <button id="dragModeBtn" onclick="toggleDragMode()" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-medium rounded-lg transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrows-up-down-left-right"></i> تحريك العناصر: إيقاف
+                </button>
+                <button onclick="saveAsImage()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-image"></i> حفظ كصورة
+                </button>
+                <button onclick="shareWhatsApp()" class="px-3 py-1.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-medium rounded-lg shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-brands fa-whatsapp text-sm"></i> إرسال واتساب
+                </button>
+                <button onclick="window.print()" class="px-3.5 py-1.5 bg-[#1e40af] hover:bg-[#1e3a8a] text-white text-xs font-medium rounded-lg shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-print"></i> طباعة A4
+                </button>
+            </div>
+        </div>
+
+        <!-- Secondary Toolbar: Logo Resize & Save/Export/Import -->
+        <div class="pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <!-- Logo Size Controls -->
+            <div class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                <span class="font-semibold text-gray-700"><i class="fa-solid fa-expand text-blue-600 mr-1"></i> حجم العنصر المحدد:</span>
+                <button onclick="resizeSelected(-0.1)" class="w-6 h-6 bg-white border border-gray-300 rounded hover:bg-gray-100 font-bold" title="تصغير">-</button>
+                <span id="scaleLabel" class="font-mono w-10 text-center text-gray-800">100%</span>
+                <button onclick="resizeSelected(0.1)" class="w-6 h-6 bg-white border border-gray-300 rounded hover:bg-gray-100 font-bold" title="تكبير">+</button>
+                <button onclick="resetSelected()" class="text-[11px] text-gray-500 hover:text-gray-800 underline mr-1">إعادة</button>
+            </div>
+
+            <!-- Logo Language Switcher Controls -->
+            <div class="flex items-center gap-1.5 bg-blue-50/70 px-3 py-1.5 rounded-lg border border-blue-200">
+                <span class="font-bold text-blue-900"><i class="fa-solid fa-language mr-1"></i> لغة الشعار:</span>
+                <button onclick="setLogoLanguageMode('both')" id="logoBtnBoth" class="px-2.5 py-1 bg-blue-600 text-white rounded font-medium shadow-sm transition">عربي / English</button>
+                <button onclick="setLogoLanguageMode('ar')" id="logoBtnAr" class="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-900 rounded font-medium transition">عربي فقط</button>
+                <button onclick="setLogoLanguageMode('en')" id="logoBtnEn" class="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-900 rounded font-medium transition">English Only</button>
+            </div>
+
+            <!-- Save / Export / Import Controls -->
+            <div class="flex flex-wrap items-center gap-1.5">
+                <button onclick="saveToLocal(true)" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium rounded-lg transition flex items-center gap-1">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ
+                </button>
+                <button onclick="exportInvoice()" class="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-medium rounded-lg transition flex items-center gap-1">
+                    <i class="fa-solid fa-download"></i> تصدير نسخة
+                </button>
+                <label class="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-medium rounded-lg transition flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-upload"></i> استرداد
+                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="importInvoice(event)">
+                </label>
+                <button onclick="resetAllDefault()" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-medium rounded-lg transition flex items-center gap-1" title="استعادة الفاتورة الأصلية">
+                    <i class="fa-solid fa-rotate-left"></i> افتراضي
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="no-print fixed bottom-5 right-5 bg-gray-900 text-white px-4 py-2.5 rounded-lg shadow-lg text-sm transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        تم الحفظ
+    </div>
+
+    <!-- Main Workspace: Sidebar Gallery + A4 Invoice Paper -->
+    <div class="max-w-[1150px] mx-auto flex flex-col lg:flex-row items-start justify-center gap-6">
+
+        <!-- Sidebar for Transparent Images & Stamps (Hidden on Print) -->
+        <aside class="no-print w-full lg:w-64 bg-white p-4 rounded-xl shadow-sm border border-blue-100 shrink-0 lg:sticky lg:top-6">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                    <i class="fa-regular fa-images text-blue-600"></i> الأختام والصور المفرغة
+                </h2>
+                <button onclick="removeSelectedOverlay()" class="text-[11px] text-red-600 hover:text-red-800 bg-red-50 px-2 py-0.5 rounded border border-red-200" title="حذف العنصر المحدد">
+                    <i class="fa-solid fa-trash-can"></i> حذف المحدد
+                </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-3 leading-relaxed">انقر على أي ختم أو شعار لإضافته مفرغاً فوق الفاتورة، ثم اسحبه أو غيّر حجمه أو احذفه:</p>
+
+            <!-- Preset & 3 Stamps Gallery Grid -->
+            <div id="sidebarGallery" class="grid grid-cols-3 lg:grid-cols-2 gap-2.5 mb-3">
+                <!-- 1. Project logo.png -->
+                <button onclick="addTransparentImage(this.querySelector('img').src, 'شعار المدار')" class="group p-2 border border-slate-200 hover:border-blue-500 rounded-lg bg-slate-50/70 hover:bg-blue-50/40 flex flex-col items-center justify-center transition">
+                    <img src="logo.png" alt="logo.png" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><path d=%22M 153 84 A 55 55 0 1 1 116 47%22 fill=%22none%22 stroke=%22%231e3a8a%22 stroke-width=%227%22 stroke-linecap=%22round%22/><path d=%22M 134 94 A 35 35 0 1 1 106 66%22 fill=%22none%22 stroke=%22%231e3a8a%22 stroke-width=%227%22 stroke-linecap=%22round%22/><circle cx=%22131%22 cy=%2269%22 r=%2222%22 fill=%22%23f59e0b%22/></svg>'" class="w-12 h-12 object-contain mb-1 bg-transparent">
+                    <span class="text-[10px] font-semibold text-slate-700 group-hover:text-blue-700">شعار المدار</span>
+                </button>
+
+                <!-- 2. Stamp 1: Official Round Seal -->
+                <button onclick="addTransparentImage(this.querySelector('img').src, 'ختم رسمي دائري')" class="group p-2 border border-slate-200 hover:border-blue-500 rounded-lg bg-slate-50/70 hover:bg-blue-50/40 flex flex-col items-center justify-center transition">
+                    <img src="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><circle cx=%22100%22 cy=%22100%22 r=%2290%22 fill=%22none%22 stroke=%22%231e3a8a%22 stroke-width=%226%22/><circle cx=%22100%22 cy=%22100%22 r=%2278%22 fill=%22none%22 stroke=%22%231e3a8a%22 stroke-width=%222%22 stroke-dasharray=%224 4%22/><text x=%22100%22 y=%2245%22 font-size=%2215%22 font-weight=%22bold%22 fill=%22%231e3a8a%22 text-anchor=%22middle%22 font-family=%22Cairo%22>المدار ستور العراق</text><text x=%22100%22 y=%22170%22 font-size=%2213%22 font-weight=%22bold%22 fill=%22%23f59e0b%22 text-anchor=%22middle%22 font-family=%22Cairo%22>AL-MADAR STORE</text><circle cx=%22100%22 cy=%22100%22 r=%2232%22 fill=%22none%22 stroke=%22%231e3a8a%22 stroke-width=%223%22/><circle cx=%22100%22 cy=%22100%22 r=%2210%22 fill=%22%23f59e0b%22/></svg>" alt="ختم 1" class="w-12 h-12 object-contain mb-1 bg-transparent">
+                    <span class="text-[10px] font-semibold text-slate-700 group-hover:text-blue-700">ختم رسمي 1</span>
+                </button>
+
+                <!-- 3. Stamp 2: Paid Square Seal -->
+                <button onclick="addTransparentImage(this.querySelector('img').src, 'ختم مدفوع (PAID)')" class="group p-2 border border-slate-200 hover:border-blue-500 rounded-lg bg-slate-50/70 hover:bg-blue-50/40 flex flex-col items-center justify-center transition">
+                    <img src="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><rect x=%2215%22 y=%2235%22 width=%22170%22 height=%22130%22 rx=%2212%22 fill=%22none%22 stroke=%22%232563eb%22 stroke-width=%228%22/><text x=%22100%22 y=%2290%22 font-size=%2236%22 font-weight=%22900%22 fill=%22%232563eb%22 text-anchor=%22middle%22 font-family=%22Inter%22>PAID</text><text x=%22100%22 y=%22130%22 font-size=%2218%22 font-weight=%22bold%22 fill=%22%231e3a8a%22 text-anchor=%22middle%22 font-family=%22Cairo%22>المدار ستور</text></svg>" alt="ختم 2" class="w-12 h-12 object-contain mb-1 bg-transparent">
+                    <span class="text-[10px] font-semibold text-slate-700 group-hover:text-blue-700">ختم مدفوع 2</span>
+                </button>
+
+                <!-- 4. Stamp 3: Orbit Seal -->
+                <button onclick="addTransparentImage(this.querySelector('img').src, 'ختم المدار الدائري')" class="group p-2 border border-slate-200 hover:border-blue-500 rounded-lg bg-slate-50/70 hover:bg-blue-50/40 flex flex-col items-center justify-center transition">
+                    <img src="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><circle cx=%22100%22 cy=%22100%22 r=%2285%22 fill=%22none%22 stroke=%22%231d4ed8%22 stroke-width=%225%22/><path d=%22M 153 84 A 55 55 0 1 1 116 47%22 fill=%22none%22 stroke=%22%231d4ed8%22 stroke-width=%227%22 stroke-linecap=%22round%22/><path d=%22M 134 94 A 35 35 0 1 1 106 66%22 fill=%22none%22 stroke=%22%231d4ed8%22 stroke-width=%227%22 stroke-linecap=%22round%22/><circle cx=%22131%22 cy=%2269%22 r=%2220%22 fill=%22%23f59e0b%22/><text x=%22100%22 y=%22155%22 font-size=%2216%22 font-weight=%22bold%22 fill=%22%231d4ed8%22 text-anchor=%22middle%22 font-family=%22Cairo%22>AL-MADAR STORE</text></svg>" alt="ختم 3" class="w-12 h-12 object-contain mb-1 bg-transparent">
+                    <span class="text-[10px] font-semibold text-slate-700 group-hover:text-blue-700">ختم المدار 3</span>
+                </button>
+            </div>
+
+            <!-- Upload Custom PNG Transparent Image / Stamp -->
+            <label class="w-full py-2 px-3 bg-blue-50 hover:bg-blue-100 text-[#1e40af] border border-dashed border-blue-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition">
+                <i class="fa-solid fa-cloud-arrow-up"></i> رفع ختم أو صورة مفرغة (PNG)
+                <input type="file" accept=".png,image/png" multiple class="hidden" onchange="uploadSidebarImages(event)">
+            </label>
+        </aside>
+
+    <!-- Main Invoice Paper Container (Exact A4 Single Page Proportions) -->
+    <div id="invoicePaper" class="invoice-container w-full max-w-[210mm] min-h-[297mm] bg-white shadow-xl rounded-sm p-6 sm:p-8 border border-slate-200 relative overflow-hidden flex flex-col justify-between">
+        
+        <div>
+        <!-- Top Royal Blue Header Band Matching Al-Madar Store Logo -->
+        <div class="bg-gradient-to-r from-[#172554] via-[#1e3a8a] to-[#1d4ed8] text-white p-5 sm:p-6 rounded-t-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-4 border-[#f59e0b]">
+            
+            <!-- Left Side: Al-Madar Store Logo & Invoice Title -->
+            <div class="flex flex-col justify-between h-full space-y-3">
+                <!-- Al-Madar Store Logo & Company Name Container (Now independently resizable & draggable) -->
+                <div class="flex items-center gap-3.5">
+                    <!-- Logo Image/Icon -->
+                    <div id="masterLogoBox" data-resizable="true" data-scale="1" onclick="selectResizable(this, event)" class="draggable-item resizable-item w-fit origin-top-left cursor-pointer" title="انقر لتكبير/تصغير الشعار">
+                        <img src="logo.png" alt="المدار ستور" crossorigin="anonymous" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="w-16 h-16 object-contain drop-shadow-md flex-shrink-0 bg-transparent">
+                        <svg style="display:none;" class="w-16 h-16 drop-shadow-md flex-shrink-0" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M 153 84 A 55 55 0 1 1 116 47" fill="none" stroke="#ffffff" stroke-width="7.5" stroke-linecap="round"/>
+                            <path d="M 134 94 A 35 35 0 1 1 106 66" fill="none" stroke="#ffffff" stroke-width="7.5" stroke-linecap="round"/>
+                            <circle cx="131" cy="69" r="23" fill="#f59e0b"/>
+                        </svg>
+                    </div>
+
+                    <!-- Company Name Under Logo (Now Resizable & Draggable) -->
+                    <div id="companyNameBox" data-resizable="true" data-scale="1" onclick="selectResizable(this, event)" class="draggable-item resizable-item flex flex-col origin-top-left cursor-pointer" title="انقر لتكبير/تصغير اسم الشركة">
+                        <span id="logoTextAr" class="text-2xl sm:text-3xl font-extrabold tracking-wide text-white leading-tight" style="font-family: 'Cairo', sans-serif;" contenteditable="true">المدار ستور</span>
+                        <span id="logoTextEn" class="text-xs sm:text-sm font-semibold text-blue-200 tracking-wider font-sans leading-tight" contenteditable="true">Al-Madar Store</span>
+                    </div>
+                </div>
+
+                <!-- Large Word "Invoice" -->
+                <h2 class="draggable-item text-2xl sm:text-3xl font-bold tracking-tight text-white w-fit" contenteditable="true">Invoice</h2>
+            </div>
+
+            <!-- Right Side: Apple Premium Reseller & Contact Info -->
+            <div class="flex flex-col items-start sm:items-end justify-between space-y-3 text-xs sm:text-sm">
+                <!-- Apple Logo + Premium Reseller (Resizable & Draggable) -->
+                <div id="appleLogoBox" data-resizable="true" data-scale="1" onclick="selectResizable(this, event)" class="draggable-item resizable-item flex flex-col items-start sm:items-center origin-top-right cursor-pointer" title="انقر لتكبير/تصغير الشعار">
+                    <i class="fa-brands fa-apple text-3xl text-white mb-0.5"></i>
+                    <div class="text-center leading-tight">
+                        <div class="font-semibold text-blue-100" contenteditable="true">Premium</div>
+                        <div class="font-semibold text-blue-100" contenteditable="true">Reseller</div>
+                    </div>
+                </div>
+
+                <!-- Contact Details -->
+                <div class="draggable-item space-y-1 text-blue-100 text-xs">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-regular fa-envelope w-4 text-center text-[#f59e0b]"></i>
+                        <span contenteditable="true">info@almadarstore.iq</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-globe w-4 text-center text-[#f59e0b]"></i>
+                        <span contenteditable="true">www.almadarstore.iq</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-phone-volume w-4 text-center text-[#f59e0b]"></i>
+                        <span contenteditable="true">16255</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-header: Sales Invoice & Serial Code -->
+        <div class="draggable-item mt-3 text-right w-fit ml-auto">
+            <h3 class="text-base sm:text-lg font-bold text-[#1e3a8a]" contenteditable="true">Sales Invoice</h3>
+            <p id="invoiceCode" class="text-xs sm:text-sm font-medium text-slate-600" contenteditable="true">ACC-SINV-2024-60421</p>
+        </div>
+
+        <!-- Divider Line -->
+        <hr class="my-3 border-blue-100">
+
+        <!-- Status Line -->
+        <div class="draggable-item grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2.5 text-sm">
+            <div class="flex items-center justify-between sm:justify-start sm:gap-28">
+                <span class="font-bold text-[#1e3a8a]" contenteditable="true">Status:</span>
+                <span class="font-semibold px-2.5 py-0.5 bg-blue-50 text-[#1d4ed8] rounded border border-blue-200 text-xs" contenteditable="true">Paid</span>
+            </div>
+        </div>
+
+        <!-- Customer & Location Details Grid -->
+        <div class="draggable-item grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm mb-4 bg-slate-50/70 p-3 rounded-lg border border-slate-200/80">
+            <!-- Left Column -->
+            <div class="space-y-1.5">
+                <div class="grid grid-cols-3 items-center">
+                    <span class="font-bold text-[#1e3a8a]" contenteditable="true">Location:</span>
+                    <span class="col-span-2 text-slate-800" contenteditable="true">Showroom Basra Twisah</span>
+                </div>
+                <div class="grid grid-cols-3 items-center">
+                    <span class="font-bold text-[#1e3a8a]" contenteditable="true">Customer Name:</span>
+                    <span id="customerNameField" class="col-span-2 font-bold text-slate-900" contenteditable="true">Ibraheem Alazawi</span>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="space-y-1.5">
+                <div class="grid grid-cols-3 items-center">
+                    <span class="font-bold text-[#1e3a8a]" contenteditable="true">Date:</span>
+                    <span class="col-span-2 font-bold text-slate-900" contenteditable="true">27-01-2024</span>
+                </div>
+                <div class="grid grid-cols-3 items-center">
+                    <span class="font-bold text-[#1e3a8a]" contenteditable="true">Customer Phone:</span>
+                    <span id="customerPhoneField" class="col-span-2 text-slate-800 font-medium" contenteditable="true">+9647707654209</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="draggable-item overflow-x-auto mb-4">
+            <table class="w-full border-collapse border border-blue-200 text-sm" id="itemsTable">
+                <thead>
+                    <tr class="bg-[#eff6ff] text-[#1e3a8a] font-bold">
+                        <th class="border border-blue-200 py-2 px-3 text-left w-12">Sr</th>
+                        <th class="border border-blue-200 py-2 px-3 text-left">Item Name</th>
+                        <th class="border border-blue-200 py-2 px-3 text-right w-24">Quantity</th>
+                        <th class="border border-blue-200 py-2 px-3 text-right w-36">Amount</th>
+                        <th class="border border-blue-200 py-2 px-3 text-center w-40">Serial No</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody">
+                    <tr class="item-row">
+                        <td class="border border-blue-200 py-2 px-3 align-top" contenteditable="true">1</td>
+                        <td class="border border-blue-200 py-2 px-3 align-top leading-snug" contenteditable="true">
+                            iPhone 15 Pro Max 256GB<br>Black Titanium
+                        </td>
+                        <td class="border border-blue-200 py-2 px-3 text-right align-top" contenteditable="true">1 Unit</td>
+                        <td class="border border-blue-200 py-2 px-3 text-right align-top font-medium">
+                            <span class="item-amount" contenteditable="true" onblur="recalculateTotals()">1,650,000.000</span> <span dir="rtl">د.ع</span>
+                        </td>
+                        <td class="border border-blue-200 py-2 px-3 text-center align-top font-mono text-xs" contenteditable="true">354679843435150</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totals Summary Section (Aligned to Right Half) -->
+        <div class="draggable-item flex justify-end mb-4">
+            <div class="w-full sm:w-1/2 space-y-2 text-sm bg-blue-50/40 p-3 rounded-lg border border-blue-100">
+                <div class="flex justify-between items-start">
+                    <span class="font-bold text-slate-700">Total</span>
+                    <span class="font-medium text-slate-900"><span id="subTotal">1,650,000.000</span> <span dir="rtl">د.ع</span></span>
+                </div>
+                
+                <div class="flex justify-between items-start">
+                    <span class="font-bold text-slate-700 leading-tight">Additional Discount Amount</span>
+                    <span class="font-medium text-slate-900"><span id="discountAmount" contenteditable="true" onblur="recalculateTotals()">0.000</span> <span dir="rtl">د.ع</span></span>
+                </div>
+
+                <div class="flex justify-between items-center pt-2 border-t-2 border-[#f59e0b]">
+                    <span class="font-bold text-[#1e3a8a]">Rounded Total:</span>
+                    <span class="font-extrabold text-base text-[#1e3a8a]"><span id="roundedTotal">1,650,000.000</span> <span dir="rtl">د.ع</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode of Payment Table -->
+        <div class="draggable-item overflow-x-auto mb-4">
+            <table class="w-full border-collapse border border-blue-200 text-sm">
+                <thead>
+                    <tr class="bg-[#eff6ff] text-[#1e3a8a] font-bold">
+                        <th class="border border-blue-200 py-2 px-3 text-left w-12">Sr</th>
+                        <th class="border border-blue-200 py-2 px-3 text-left w-1/2">Mode of Payment</th>
+                        <th class="border border-blue-200 py-2 px-3 text-left w-1/4"></th>
+                        <th class="border border-blue-200 py-2 px-3 text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-blue-200 py-2 px-3" contenteditable="true">1</td>
+                        <td class="border border-blue-200 py-2 px-3" contenteditable="true">BA-Basra Showroom</td>
+                        <td class="border border-blue-200 py-2 px-3"></td>
+                        <td class="border border-blue-200 py-2 px-3 text-right font-medium">
+                            <span id="paymentAmount" contenteditable="true">1,650,000.000</span> <span dir="rtl">د.ع</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty Bottom Space -->
+        <div class="h-24 mb-2"></div>
+        </div>
+
+        <!-- Footer Line & Page Number -->
+        <div class="draggable-item mt-auto pt-2">
+            <hr class="border-blue-200 mb-2">
+            <p class="text-center text-xs text-slate-600 font-medium" contenteditable="true">Page 1 of 1</p>
+        </div>
+
+    </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'almadar_invoice_v5';
+        let selectedElement = null;
+        let isDragMode = false;
+        let initialHTML = '';
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const paper = document.getElementById('invoicePaper');
+            initialHTML = paper.innerHTML;
+            loadFromLocal();
+            const oldStamp = document.getElementById('stampBox');
+            if (oldStamp) oldStamp.remove();
+
+            selectResizable(document.getElementById('companyNameBox') || document.getElementById('masterLogoBox'));
+            scanUploadedPngFiles();
+            setupAutoSave();
+            setupDragAndDrop();
+        });
+
+        // Set Logo Language Mode: both, ar, en
+        function setLogoLanguageMode(mode) {
+            const arEl = document.getElementById('logoTextAr');
+            const enEl = document.getElementById('logoTextEn');
+            ['Both', 'Ar', 'En'].forEach(m => {
+                const btn = document.getElementById(`logoBtn${m}`);
+                if (!btn) return;
+                if (m.toLowerCase() === mode || (mode === 'both' && m === 'Both')) {
+                    btn.className = 'px-2.5 py-1 bg-blue-600 text-white rounded font-medium shadow-sm transition';
+                } else {
+                    btn.className = 'px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-900 rounded font-medium transition';
+                }
+            });
+
+            if (mode === 'ar') {
+                if (arEl) arEl.style.display = 'block';
+                if (enEl) enEl.style.display = 'none';
+            } else if (mode === 'en') {
+                if (arEl) arEl.style.display = 'none';
+                if (enEl) enEl.style.display = 'block';
+            } else {
+                if (arEl) arEl.style.display = 'block';
+                if (enEl) enEl.style.display = 'block';
+            }
+            showToast(`تم تحديث لغة الشعار`);
+            saveToLocal(false);
+        }
+
+        // Automatically scan folder for uploaded .png files
+        async function scanUploadedPngFiles() {
+            const gallery = document.getElementById('sidebarGallery');
+            const foundUrls = new Set(['logo.png']);
+
+            function appendPngCard(url, label) {
+                if (foundUrls.has(url)) return;
+                foundUrls.add(url);
+                const btn = document.createElement('button');
+                btn.className = 'group p-2 border border-slate-200 hover:border-blue-500 rounded-lg bg-slate-50/70 hover:bg-blue-50/40 flex flex-col items-center justify-center transition';
+                btn.onclick = () => addTransparentImage(url, label);
+                btn.innerHTML = `
+                    <img src="${url}" alt="${label}" class="w-12 h-12 object-contain mb-1 bg-transparent">
+                    <span class="text-[10px] font-semibold text-slate-700 truncate w-full text-center">${label}</span>
+                `;
+                gallery.appendChild(btn);
+            }
+
+            try {
+                const host = window.location.hostname;
+                if (host.endsWith('.github.io')) {
+                    const owner = host.split('.')[0];
+                    const pathParts = window.location.pathname.split('/').filter(Boolean);
+                    const repo = pathParts[0] || `${owner}.github.io`;
+                    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/`);
+                    if (res.ok) {
+                        const files = await res.json();
+                        if (Array.isArray(files)) {
+                            files.filter(f => f.type === 'file' && f.name.toLowerCase().endsWith('.png'))
+                                 .forEach(f => appendPngCard(f.name, f.name.replace(/\.png$/i, '')));
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            const candidateNames = [
+                'stamp.png', 'stamp1.png', 'stamp2.png', 'stamp3.png',
+                'seal.png', 'signature.png', 'sign.png', 'logo2.png', 'khatm.png'
+            ];
+            candidateNames.forEach(name => {
+                const probe = new Image();
+                probe.onload = () => appendPngCard(name, name.replace(/\.png$/i, ''));
+                probe.src = name;
+            });
+        }
+
+        // Add a transparent floating image/stamp onto the invoice paper
+        function addTransparentImage(src, altText = 'ختم مفرغ') {
+            const paper = document.getElementById('invoicePaper');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'draggable-item resizable-item floating-png-item absolute cursor-move select-none';
+            wrapper.style.left = '120mm';
+            wrapper.style.top = '190mm';
+            wrapper.style.zIndex = '30';
+            wrapper.style.background = 'transparent';
+            wrapper.dataset.resizable = 'true';
+            wrapper.dataset.scale = '1';
+            wrapper.dataset.x = '0';
+            wrapper.dataset.y = '0';
+            wrapper.title = 'انقر للتحديد، واسحب لتغيير المكان';
+            wrapper.setAttribute('onclick', 'selectResizable(this, event)');
+
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = altText;
+            img.crossOrigin = 'anonymous';
+            img.className = 'w-32 h-32 object-contain pointer-events-none bg-transparent';
+            img.style.backgroundColor = 'transparent';
+
+            wrapper.appendChild(img);
+            paper.appendChild(wrapper);
+            selectResizable(wrapper);
+            saveToLocal(false);
+            showToast(`تمت إضافة "${altText}" — انقر عليه لتحريكه أو تكبيره`);
+        }
+
+        // Remove selected overlay or stamp
+        function removeSelectedOverlay() {
+            if (!selectedElement) return;
+            if (selectedElement.classList.contains('floating-png-item')) {
+                selectedElement.remove();
+                selectedElement = document.getElementById('masterLogoBox');
+                selectResizable(selectedElement);
+                saveToLocal(false);
+                showToast('تم حذف العنصر المحدد');
+            } else {
+                showToast('حدد ختم أو صورة مضافة من الفاتورة لحذفها');
+            }
+        }
+
+        // Upload custom PNG images / stamps
+        function uploadSidebarImages(event) {
+            const files = event.target.files;
+            if (!files || !files.length) return;
+            const gallery = document.getElementById('sidebarGallery');
+
+            Array.from(files).forEach(file => {
+                if (!file.name.toLowerCase().endsWith('.png') && file.type !== 'image/png') {
+                    showToast(`تم تجاهل ${file.name}: يقبل صيغة .png المفرغة فقط`);
+                    return;
+                }
+                const pngName = file.name.replace(/\.png$/i, '') + '.png';
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    const btn = document.createElement('button');
+                    btn.className = 'group p-2 border border-slate-200 hover:border-blue-500 rounded-lg bg-slate-50/70 hover:bg-blue-50/40 flex flex-col items-center justify-center transition';
+                    btn.onclick = () => addTransparentImage(dataUrl, pngName);
+                    btn.innerHTML = `
+                        <img src="${dataUrl}" alt="${pngName}" class="w-12 h-12 object-contain mb-1 bg-transparent">
+                        <span class="text-[10px] font-semibold text-slate-700 truncate w-full text-center">${pngName}</span>
+                    `;
+                    gallery.appendChild(btn);
+                    addTransparentImage(dataUrl, pngName);
+                };
+                reader.readAsDataURL(file);
+            });
+            event.target.value = '';
+        }
+
+        // Apply transform
+        function applyTransform(el) {
+            const x = parseFloat(el.dataset.x || 0);
+            const y = parseFloat(el.dataset.y || 0);
+            const scale = parseFloat(el.dataset.scale || 1);
+            el.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+        }
+
+        // Select resizable element (logo or floating stamp)
+        function selectResizable(el, event) {
+            if (event) event.stopPropagation();
+            const prev = document.querySelector('.selected-logo');
+            if (prev) prev.classList.remove('selected-logo');
+            selectedElement = el;
+            if (selectedElement) {
+                selectedElement.classList.add('selected-logo');
+                const scale = parseFloat(selectedElement.dataset.scale || 1);
+                document.getElementById('scaleLabel').innerText = Math.round(scale * 100) + '%';
+            }
+        }
+
+        // Resize selected element
+        function resizeSelected(delta) {
+            if (!selectedElement) {
+                showToast('يرجى النقر على الشعار أو الختم أولاً لتحديده');
+                return;
+            }
+            let scale = parseFloat(selectedElement.dataset.scale || 1);
+            scale = Math.max(0.4, Math.min(3.0, scale + delta));
+            selectedElement.dataset.scale = scale;
+            applyTransform(selectedElement);
+            document.getElementById('scaleLabel').innerText = Math.round(scale * 100) + '%';
+            saveToLocal(false);
+        }
+
+        function resetSelected() {
+            if (!selectedElement) return;
+            selectedElement.dataset.scale = 1;
+            selectedElement.dataset.x = 0;
+            selectedElement.dataset.y = 0;
+            applyTransform(selectedElement);
+            document.getElementById('scaleLabel').innerText = '100%';
+            saveToLocal(false);
+        }
+
+        function toggleDragMode() {
+            isDragMode = !isDragMode;
+            const btn = document.getElementById('dragModeBtn');
+            if (isDragMode) {
+                document.body.classList.add('drag-mode');
+                btn.innerHTML = '<i class="fa-solid fa-arrows-up-down-left-right"></i> تحريك العناصر: مفعّل';
+                btn.classList.replace('bg-amber-50', 'bg-amber-500');
+                btn.classList.replace('text-amber-800', 'text-white');
+                showToast('اسحب أي نص أو ختم لتغيير مكانه');
+            } else {
+                document.body.classList.remove('drag-mode');
+                btn.innerHTML = '<i class="fa-solid fa-arrows-up-down-left-right"></i> تحريك العناصر: إيقاف';
+                btn.classList.replace('bg-amber-500', 'bg-amber-50');
+                btn.classList.replace('text-white', 'text-amber-800');
+                showToast('تم إيقاف وضع التحريك العشوائي');
+            }
+        }
+
+        function setupDragAndDrop() {
+            let activeDrag = null;
+            let startX = 0, startY = 0, origX = 0, origY = 0;
+
+            document.addEventListener('pointerdown', (e) => {
+                const floatingTarget = e.target.closest('.floating-png-item');
+                const target = floatingTarget || (isDragMode ? e.target.closest('.draggable-item') : null);
+                if (!target) return;
+                if (floatingTarget) selectResizable(floatingTarget, e);
+                activeDrag = target;
+                startX = e.clientX;
+                startY = e.clientY;
+                origX = parseFloat(activeDrag.dataset.x || 0);
+                origY = parseFloat(activeDrag.dataset.y || 0);
+                activeDrag.style.zIndex = 40;
+            });
+
+            document.addEventListener('pointermove', (e) => {
+                if (!activeDrag) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                activeDrag.dataset.x = origX + dx;
+                activeDrag.dataset.y = origY + dy;
+                applyTransform(activeDrag);
+            });
+
+            document.addEventListener('pointerup', () => {
+                if (!activeDrag) return;
+                activeDrag.style.zIndex = '';
+                activeDrag = null;
+                saveToLocal(false);
+            });
+        }
+
+        function formatIQD(num) {
+            return num.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+        }
+
+        function parseIQD(str) {
+            const cleaned = str.replace(/,/g, '').trim();
+            const val = parseFloat(cleaned);
+            return isNaN(val) ? 0 : val;
+        }
+
+        function addRow() {
+            const tbody = document.getElementById('itemsBody');
+            const rowCount = tbody.querySelectorAll('tr').length + 1;
+            const tr = document.createElement('tr');
+            tr.className = 'item-row';
+            tr.innerHTML = `
+                <td class="border border-blue-200 py-2.5 px-3 align-top" contenteditable="true">${rowCount}</td>
+                <td class="border border-blue-200 py-2.5 px-3 align-top leading-snug" contenteditable="true">New Apple Product / Accessory</td>
+                <td class="border border-blue-200 py-2.5 px-3 text-right align-top" contenteditable="true">1 Unit</td>
+                <td class="border border-blue-200 py-2.5 px-3 text-right align-top font-medium">
+                    <span class="item-amount" contenteditable="true" onblur="recalculateTotals()">50,000.000</span> <span dir="rtl">د.ع</span>
+                </td>
+                <td class="border border-blue-200 py-2.5 px-3 text-center align-top font-mono text-xs sm:text-sm" contenteditable="true">-</td>
+            `;
+            tbody.appendChild(tr);
+            recalculateTotals();
+            saveToLocal(false);
+        }
+
+        function recalculateTotals() {
+            const amountElements = document.querySelectorAll('.item-amount');
+            let sum = 0;
+            amountElements.forEach(el => {
+                const val = parseIQD(el.innerText);
+                el.innerText = formatIQD(val);
+                sum += val;
+            });
+
+            const discountEl = document.getElementById('discountAmount');
+            const discount = parseIQD(discountEl.innerText);
+            discountEl.innerText = formatIQD(discount);
+
+            const finalTotal = Math.max(0, sum - discount);
+
+            document.getElementById('subTotal').innerText = formatIQD(sum);
+            document.getElementById('roundedTotal').innerText = formatIQD(finalTotal);
+            document.getElementById('paymentAmount').innerText = formatIQD(finalTotal);
+
+            saveToLocal(false);
+        }
+
+        function setupAutoSave() {
+            const paper = document.getElementById('invoicePaper');
+            paper.addEventListener('input', () => { saveToLocal(false); });
+        }
+
+        function saveToLocal(notify = true) {
+            try {
+                const prevSelected = document.querySelector('.selected-logo');
+                if (prevSelected) prevSelected.classList.remove('selected-logo');
+                const paperHTML = document.getElementById('invoicePaper').innerHTML;
+                localStorage.setItem(STORAGE_KEY, paperHTML);
+                if (prevSelected) prevSelected.classList.add('selected-logo');
+                if (notify) showToast('تم حفظ التعديلات بنجاح');
+            } catch (e) {}
+        }
+
+        function loadFromLocal() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                document.getElementById('invoicePaper').innerHTML = saved;
+            }
+        }
+
+        function exportInvoice() {
+            saveToLocal(false);
+            const prevSelected = document.querySelector('.selected-logo');
+            if (prevSelected) prevSelected.classList.remove('selected-logo');
+            const data = { app: 'MasterStoreInvoice', exportedAt: new Date().toISOString(), html: document.getElementById('invoicePaper').innerHTML };
+            if (prevSelected) prevSelected.classList.add('selected-logo');
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Invoice_modified.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('تم تصدير النسخة المعدلة');
+        }
+
+        async function captureInvoiceCanvas() {
+            const paper = document.getElementById('invoicePaper');
+            const prevSelected = document.querySelector('.selected-logo');
+            if (prevSelected) prevSelected.classList.remove('selected-logo');
+            const canvas = await html2canvas(paper, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+            if (prevSelected) prevSelected.classList.add('selected-logo');
+            return canvas;
+        }
+
+        async function saveAsImage() {
+            showToast('جاري تجهيز صورة الفاتورة...');
+            try {
+                const canvas = await captureInvoiceCanvas();
+                const link = document.createElement('a');
+                link.download = `AlMadar_Invoice.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                showToast('تم حفظ الفاتورة كصورة بنجاح');
+            } catch (err) {
+                showToast('حدث خطأ أثناء حفظ الصورة');
+            }
+        }
+
+        async function shareWhatsApp() {
+            const rawPhone = document.getElementById('customerPhoneField')?.innerText || '';
+            let cleanPhone = rawPhone.replace(/[^\d]/g, '');
+            if (cleanPhone.startsWith('07')) {
+                cleanPhone = '964' + cleanPhone.substring(1);
+            }
+            if (!cleanPhone) {
+                showToast('يرجى إدخال رقم هاتف الزبون في الفاتورة أولاً');
+                return;
+            }
+
+            const customerName = document.getElementById('customerNameField')?.innerText?.trim() || '';
+            const total = document.getElementById('roundedTotal')?.innerText?.trim() || '';
+            const message = `مرحباً ${customerName}،\nمرفق لكم فاتورة الشراء من *المدار ستور*\nالمبلغ الإجمالي: ${total} د.ع`;
+
+            showToast('جاري تجهيز الصورة وفتح واتساب...');
+            try {
+                const canvas = await captureInvoiceCanvas();
+                canvas.toBlob(async (blob) => {
+                    const file = new File([blob], `Invoice.png`, { type: 'image/png' });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({ files: [file], title: `فاتورة شراء`, text: message });
+                            return;
+                        } catch (shareErr) {}
+                    }
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Invoice.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+                    window.open(waUrl, '_blank');
+                    showToast('تم تحميل الصورة وفتح محادثة واتساب للزبون');
+                }, 'image/png');
+            } catch (e) {
+                const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+                window.open(waUrl, '_blank');
+            }
+        }
+
+        function importInvoice(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && parsed.html) {
+                        document.getElementById('invoicePaper').innerHTML = parsed.html;
+                        saveToLocal(false);
+                        selectResizable(document.getElementById('masterLogoBox'));
+                        showToast('تم استرداد الفاتورة بنجاح');
+                    }
+                } catch (err) {
+                    showToast('ملف غير صالح');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function resetAllDefault() {
+            localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('invoicePaper').innerHTML = initialHTML;
+            selectResizable(document.getElementById('masterLogoBox'));
+            showToast('تمت استعادة الفاتورة الأصلية');
+        }
+
+        function showToast(msg = 'تم الحفظ تلقائياً') {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2200);
+        }
+    </script>
+</body>
+</html>
